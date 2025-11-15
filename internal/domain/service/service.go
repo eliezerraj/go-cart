@@ -1,0 +1,174 @@
+package service
+
+import (
+	"fmt"
+	"time"
+	"errors"
+	"context"
+	"net/http"
+	"encoding/json"
+
+	"github.com/rs/zerolog"
+
+	"github.com/go-cart/shared/erro"
+	"github.com/go-cart/internal/domain/model"
+
+	database "github.com/go-cart/internal/infrastructure/repo/database"
+
+	go_core_http "github.com/eliezerraj/go-core/http"
+	go_core_db_pg "github.com/eliezerraj/go-core/database/postgre"
+	go_core_otel_trace "github.com/eliezerraj/go-core/otel/trace"
+)
+
+var tracerProvider go_core_otel_trace.TracerProvider
+
+type WorkerService struct {
+	appServer			*model.AppServer
+	workerRepository	*database.WorkerRepository
+	logger 				*zerolog.Logger
+	httpService			*go_core_http.HttpService		 	
+}
+
+// About new worker service
+func NewWorkerService(appServer	*model.AppServer,
+					  workerRepository *database.WorkerRepository, 
+					  appLogger *zerolog.Logger) *WorkerService {
+	logger := appLogger.With().
+						Str("package", "domain.service").
+						Logger()
+	logger.Info().
+			Str("func","NewWorkerService").Send()
+
+	httpService := go_core_http.NewHttpService(&logger)					
+
+	return &WorkerService{
+		appServer: appServer,
+		workerRepository: workerRepository,
+		logger: &logger,
+		httpService: httpService,
+	}
+}
+
+// About database stats
+func (s *WorkerService) Stat(ctx context.Context) (go_core_db_pg.PoolStats){
+	s.logger.Info().
+			Str("func","Stat").Send()
+
+	return s.workerRepository.Stat(ctx)
+}
+
+// About check health service
+func (s * WorkerService) HealthCheck(ctx context.Context) error{
+	s.logger.Info().
+			Str("func","HealthCheck").Send()
+
+	// Check database health
+	err := s.workerRepository.DatabasePG.Ping()
+	if err != nil {
+		s.logger.Error().
+				Err(err).Msg("*** Database HEALTH FAILED ***")
+		return erro.ErrHealthCheck
+	}
+
+	s.logger.Info().
+			Str("func","HealthCheck").
+			Msg("*** Database HEALTH SUCCESSFULL ***")
+
+	return nil
+}
+
+// About create a product
+func (s *WorkerService) AddCart(ctx context.Context, 
+								cart *model.Cart) (*model.Cart, error){
+	// trace
+	ctx, span := tracerProvider.SpanCtx(ctx, "service.AddCart")
+	defer span.End()
+
+	s.logger.Info().
+			Ctx(ctx).
+			Str("func","AddCart").Send()
+
+	// prepare database
+	tx, conn, err := s.workerRepository.DatabasePG.StartTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer s.workerRepository.DatabasePG.ReleaseTx(conn)
+
+	// handle connection
+	defer func() {
+		if err != nil {
+			tx.Rollback(ctx)
+		} else {
+			tx.Commit(ctx)
+		}
+		span.End()
+	}()
+
+	// prepare data
+	cart.CreatedAt = time.Now()
+
+	// Create cart
+	res_cart, err := s.workerRepository.AddCart(ctx, tx, cart)
+	if err != nil {
+		return nil, err
+	}
+	cart.ID = res_cart.ID
+
+	//--------------------------------------
+
+	trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
+
+	headers := map[string]string{
+		"Content-Type":  "application/json;charset=UTF-8",
+		"X-Request-Id": trace_id,
+		//"Host": s.apiService[0].HostName,
+	}
+
+	httpClientParameter := go_core_http.HttpClientParameter {
+		Url:  (*s.appServer.Endpoint)[0].Url + "/product/" + "sha-02",
+		Method: (*s.appServer.Endpoint)[0].Method,
+		Timeout: (*s.appServer.Endpoint)[0].HttpTimeout,
+		Headers: &headers,
+	}
+
+	res_payload, statusCode, err := s.httpService.DoHttp(ctx, 
+														httpClientParameter)
+	if err != nil {
+
+	}
+	if statusCode != http.StatusOK {
+	
+	}
+
+	jsonString, err  := json.Marshal(res_payload)
+	if err != nil {
+		s.logger.Error().
+				Ctx(ctx).
+				Err(err).Send()
+		return nil, errors.New(err.Error())
+    }
+	var product model.Product
+	json.Unmarshal(jsonString, &product)
+
+	
+	fmt.Println("==============>",product)
+
+
+	// -------------------------------
+	// Create cart itens
+    for i := range *cart.CartItem { 
+		cartItem := &(*cart.CartItem)[i]
+
+		// prepare data
+		cartItem.CreatedAt = cart.CreatedAt
+
+    	res_cart_item, err := s.workerRepository.AddCartItem(ctx, tx, cartItem)
+		if err != nil { 
+			return nil, err
+		}
+		(*cart.CartItem)[i] = *res_cart_item
+    }
+
+	return cart, nil
+}
