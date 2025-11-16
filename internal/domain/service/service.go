@@ -58,7 +58,7 @@ func (s *WorkerService) Stat(ctx context.Context) (go_core_db_pg.PoolStats){
 }
 
 // About check health service
-func (s * WorkerService) HealthCheck(ctx context.Context) error{
+func (s * WorkerService) HealthCheck(ctx context.Context) error {
 	s.logger.Info().
 			Str("func","HealthCheck").Send()
 
@@ -125,37 +125,10 @@ func (s *WorkerService) AddCart(ctx context.Context,
 		//"Host": s.apiService[0].HostName,
 	}
 
-	httpClientParameter := go_core_http.HttpClientParameter {
-		Url:  (*s.appServer.Endpoint)[0].Url + "/product/" + "sha-02",
-		Method: (*s.appServer.Endpoint)[0].Method,
-		Timeout: (*s.appServer.Endpoint)[0].HttpTimeout,
-		Headers: &headers,
-	}
-
-	res_payload, statusCode, err := s.httpService.DoHttp(ctx, 
-														httpClientParameter)
-	if err != nil {
-
-	}
-	if statusCode != http.StatusOK {
-	
-	}
-
-	jsonString, err  := json.Marshal(res_payload)
-	if err != nil {
-		s.logger.Error().
-				Ctx(ctx).
-				Err(err).Send()
-		return nil, errors.New(err.Error())
-    }
-	var product model.Product
-	json.Unmarshal(jsonString, &product)
-
-	
-	fmt.Println("==============>",product)
-
-
 	// -------------------------------
+
+	var httpClientParameter go_core_http.HttpClientParameter
+
 	// Create cart itens
     for i := range *cart.CartItem { 
 		cartItem := &(*cart.CartItem)[i]
@@ -163,7 +136,47 @@ func (s *WorkerService) AddCart(ctx context.Context,
 		// prepare data
 		cartItem.CreatedAt = cart.CreatedAt
 
-    	res_cart_item, err := s.workerRepository.AddCartItem(ctx, tx, cartItem)
+		httpClientParameter = go_core_http.HttpClientParameter {
+			Url:  (*s.appServer.Endpoint)[0].Url + "/product/" + cartItem.Product.Sku,
+			Method: (*s.appServer.Endpoint)[0].Method,
+			Timeout: (*s.appServer.Endpoint)[0].HttpTimeout,
+			Headers: &headers,
+		}
+		
+		res_payload, statusCode, err := s.httpService.DoHttp(ctx, 
+															httpClientParameter)
+
+		if err != nil {
+			return nil, err
+		}
+		if statusCode != http.StatusOK {
+			if statusCode == http.StatusNotFound {
+				return nil, erro.ErrNotFound
+			} else {
+				return nil, erro.ErrBadRequest 
+			}
+		}
+
+		jsonString, err  := json.Marshal(res_payload)
+		if err != nil {
+			s.logger.Error().
+					Ctx(ctx).
+					Err(err).Send()
+			return nil, errors.New(err.Error())
+		}
+		product := model.Product{}
+		json.Unmarshal(jsonString, &product)
+
+		fmt.Println(product)
+
+		cartItem.Product = product
+
+		fmt.Println("========================",cartItem)
+
+    	res_cart_item, err := s.workerRepository.AddCartItem(ctx,
+															 tx,
+															 cart, 
+															 cartItem)
 		if err != nil { 
 			return nil, err
 		}
@@ -171,4 +184,25 @@ func (s *WorkerService) AddCart(ctx context.Context,
     }
 
 	return cart, nil
+}
+
+// About get cart and cart itens
+func (s * WorkerService) GetCart(ctx context.Context, 
+									cart *model.Cart) (*model.Cart, error){
+	// trace
+	ctx, span := tracerProvider.SpanCtx(ctx, "service.GetCart")
+	defer span.End()
+
+	s.logger.Info().
+			Ctx(ctx).
+			Str("func","GetCart").Send()
+
+			
+	// Call a service
+	resCart, err := s.workerRepository.GetCart(ctx, cart)
+	if err != nil {
+		return nil, err
+	}
+								
+	return resCart, nil
 }

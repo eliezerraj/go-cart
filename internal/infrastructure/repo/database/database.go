@@ -3,12 +3,12 @@ package database
 import (
 		"context"
 		"errors"
-		//"database/sql"
+		"database/sql"
 
 		"github.com/rs/zerolog"
 		"github.com/jackc/pgx/v5"
 
-		//"github.com/go-cart/shared/erro"
+		"github.com/go-cart/shared/erro"
 		"github.com/go-cart/internal/domain/model"
 
 		go_core_otel_trace "github.com/eliezerraj/go-core/otel/trace"
@@ -108,6 +108,7 @@ func (w* WorkerRepository) AddCart(ctx context.Context,
 // About create a cart_item
 func (w* WorkerRepository) AddCartItem(ctx context.Context, 
 										tx pgx.Tx, 
+										cart *model.Cart,
 										cartItem *model.CartItem) (*model.CartItem, error){
 	// trace
 	ctx, span := tracerProvider.SpanCtx(ctx, "database.AddCartItem")
@@ -129,8 +130,6 @@ func (w* WorkerRepository) AddCartItem(ctx context.Context,
 	//Prepare
 	var id int
 
-	cartItem.Product.ID = 1
-
 	// Query Execute
 	query := `INSERT INTO cart_item ( 	fk_cart_id,
 										fk_product_id,
@@ -141,7 +140,7 @@ func (w* WorkerRepository) AddCartItem(ctx context.Context,
 
 	row := tx.QueryRow(	ctx, 
 						query,
-						cartItem.Product.ID,
+						cart.ID,
 						cartItem.Product.ID,
 						cartItem.Price,
 						cartItem.Quantity,					
@@ -158,4 +157,136 @@ func (w* WorkerRepository) AddCartItem(ctx context.Context,
 	cartItem.ID = id
 	
 	return cartItem , nil
+}
+
+
+// About get a cart_item
+func (w *WorkerRepository) GetCart(ctx context.Context,
+									cart *model.Cart) (*model.Cart, error) {
+	// trace
+	ctx, span := tracerProvider.SpanCtx(ctx, "database.GetCart")
+	defer span.End()
+
+	w.logger.Info().
+			Ctx(ctx).
+			Str("func","GetCart").Send()
+
+	// db connection
+	conn, err := w.DatabasePG.Acquire(ctx)
+	if err != nil {
+		w.logger.Error().
+				Ctx(ctx).
+				Err(err).Send()
+		return nil, errors.New(err.Error())
+	}
+	defer w.DatabasePG.Release(conn)
+
+	// Query and Execute
+	query := `select ca.id,
+					ca.user_id,
+					ca.created_at,
+					ca.updated_at,
+					p.id,
+					p.sku,
+					p.type,
+					p.name,
+					p.created_at,
+					p.updated_at,
+					ca_it.id,
+					ca_it.quantity,
+					ca_it.price,
+					ca_it.discount,
+					ca_it.created_at,
+					ca_it.updated_at
+				from cart ca,
+					cart_item ca_it,
+					product p
+				where ca.id = ca_it.fk_cart_id
+				and p.id = ca_it.fk_product_id
+				and ca.id = $1`
+
+	rows, err := conn.Query(ctx, 
+							query, 
+							cart.ID)
+	if err != nil {
+		w.logger.Error().
+				Ctx(ctx).
+				Err(err).Send()
+		return nil, errors.New(err.Error())
+	}
+	defer rows.Close()
+	
+    if err := rows.Err(); err != nil {
+		w.logger.Error().
+				Ctx(ctx).
+				Err(err).Msg("fatal error closing rows")
+        return nil, errors.New(err.Error())
+    }
+
+	resCart := model.Cart{}
+	resProduct := model.Product{}
+	resCartItem := model.CartItem{}
+	listCartItem := []model.CartItem{}
+
+	var nullCartUpdatedAt sql.NullTime
+	var nullProductUpdatedAt sql.NullTime
+	var nullCartItemUpdatedAt sql.NullTime
+
+	for rows.Next() {
+		err := rows.Scan(	&resCart.ID, 
+							&resCart.UserId,
+							&resCart.CreatedAt,
+							&nullCartUpdatedAt,
+
+							&resProduct.ID, 
+							&resProduct.Sku, 
+							&resProduct.Type,
+							&resProduct.Name,
+							&resProduct.CreatedAt,
+							&nullProductUpdatedAt,
+
+							&resCartItem.ID, 
+							&resCartItem.Quantity, 
+							&resCartItem.Price,
+							&resCartItem.Discount, 
+							&resCartItem.CreatedAt,
+							&nullCartItemUpdatedAt,
+						)
+		if err != nil {
+			w.logger.Error().
+					Ctx(ctx).
+					Err(err).Send()
+			return nil, errors.New(err.Error())
+        }
+
+		if nullCartUpdatedAt.Valid {
+        	resCart.UpdatedAt = &nullProductUpdatedAt.Time
+    	} else {
+			resCart.UpdatedAt = nil
+		}
+		if nullProductUpdatedAt.Valid {
+        	resProduct.UpdatedAt = &nullProductUpdatedAt.Time
+    	} else {
+			resProduct.UpdatedAt = nil
+		}
+		if nullCartItemUpdatedAt.Valid {
+        	resCartItem.UpdatedAt = &nullCartItemUpdatedAt.Time
+    	} else {
+			resCartItem.UpdatedAt = nil
+		}
+
+		resCartItem.Product = resProduct
+		listCartItem = append(listCartItem, resCartItem)
+
+		resCart.CartItem = &listCartItem
+	}
+
+	if resCart == (model.Cart{}) {
+		w.logger.Warn().
+				Ctx(ctx).
+				Err(err).Send()
+		return nil, erro.ErrNotFound
+	}
+		
+	return &resCart, nil
 }

@@ -76,7 +76,11 @@ func (h *HttpAppServer) StartHttpAppServer(	ctx context.Context,
 	add := appRouter.Methods(http.MethodPost, http.MethodOptions).Subrouter()
 	add.HandleFunc("/cart", go_core_middleware.MiddleWareErrorHandler(appHttpRouters.AddCart))		
 	add.Use(otelmux.Middleware(h.appServer.Application.Name))
-///
+
+	get := appRouter.Methods(http.MethodGet, http.MethodOptions).Subrouter()
+	get.HandleFunc("/cart/{id}",go_core_middleware.MiddleWareErrorHandler(appHttpRouters.GetCart))		
+	get.Use(otelmux.Middleware(h.appServer.Application.Name))
+
 	// -------   Server Http 
 
 	srv := http.Server{

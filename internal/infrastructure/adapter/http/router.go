@@ -7,10 +7,11 @@ import (
 	"net/http"
 	"context"
 	"strings"
+	"strconv"
 	"encoding/json"	
 
 	"github.com/rs/zerolog"
-	//"github.com/gorilla/mux"
+	"github.com/gorilla/mux"
 
 	"github.com/go-cart/shared/erro"
 	"github.com/go-cart/internal/domain/model"
@@ -136,7 +137,7 @@ func (h *HttpRouters) Info(rw http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(rw).Encode(h.appServer)
 }
 
-// About add product
+// About add cart and cart itens
 func (h *HttpRouters) AddCart(rw http.ResponseWriter, req *http.Request) error {
 	// extract context	
 	ctx, cancel := context.WithTimeout(req.Context(), time.Duration(h.appServer.Server.CtxTimeout) * time.Second)
@@ -160,6 +161,41 @@ func (h *HttpRouters) AddCart(rw http.ResponseWriter, req *http.Request) error {
 	defer req.Body.Close()
 
 	res, err := h.workerService.AddCart(ctx, &cart)
+	if err != nil {
+		trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
+		return h.ErrorHandler(trace_id, err)
+	}
+	
+	return coreJson.WriteJSON(rw, http.StatusOK, res)
+}
+
+// About get cart and cart itens
+func (h *HttpRouters) GetCart(rw http.ResponseWriter, req *http.Request) error {
+	// extract context		
+	ctx, cancel := context.WithTimeout(req.Context(), time.Duration(h.appServer.Server.CtxTimeout) * time.Second)
+    defer cancel()
+
+	// trace	
+	ctx, span := tracerProvider.SpanCtx(ctx, "adapter.http.GetCart")
+	defer span.End()
+
+	// log with context
+	h.logger.Info().
+			Ctx(ctx).
+			Str("func","GetCart").Send()
+
+	vars := mux.Vars(req)
+	varID := vars["id"]
+
+	varIDint, err := strconv.Atoi(varID)
+    if err != nil {
+		trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
+		return h.ErrorHandler(trace_id, erro.ErrBadRequest)
+    }
+
+	cart := model.Cart{ID: varIDint}
+
+	res, err := h.workerService.GetCart(ctx, &cart)
 	if err != nil {
 		trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
 		return h.ErrorHandler(trace_id, err)
