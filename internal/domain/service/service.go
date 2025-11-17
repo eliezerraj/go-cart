@@ -77,7 +77,7 @@ func (s * WorkerService) HealthCheck(ctx context.Context) error {
 	return nil
 }
 
-// About create a product
+// About create a cart and cart itens
 func (s *WorkerService) AddCart(ctx context.Context, 
 								cart *model.Cart) (*model.Cart, error){
 	// trace
@@ -115,8 +115,7 @@ func (s *WorkerService) AddCart(ctx context.Context,
 	}
 	cart.ID = res_cart.ID
 
-	//--------------------------------------
-
+	// Prepare the http headers
 	trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
 
 	headers := map[string]string{
@@ -125,8 +124,7 @@ func (s *WorkerService) AddCart(ctx context.Context,
 		//"Host": s.apiService[0].HostName,
 	}
 
-	// -------------------------------
-
+	// Call service inventory for product
 	var httpClientParameter go_core_http.HttpClientParameter
 
 	// Create cart itens
@@ -135,6 +133,7 @@ func (s *WorkerService) AddCart(ctx context.Context,
 
 		// prepare data
 		cartItem.CreatedAt = cart.CreatedAt
+		cartItem.Status = "BASKET"
 
 		httpClientParameter = go_core_http.HttpClientParameter {
 			Url:  (*s.appServer.Endpoint)[0].Url + "/product/" + cartItem.Product.Sku,
@@ -147,6 +146,9 @@ func (s *WorkerService) AddCart(ctx context.Context,
 															httpClientParameter)
 
 		if err != nil {
+			s.logger.Error().
+					Ctx(ctx).
+					Err(err).Send()
 			return nil, err
 		}
 		if statusCode != http.StatusOK {
@@ -167,17 +169,16 @@ func (s *WorkerService) AddCart(ctx context.Context,
 		product := model.Product{}
 		json.Unmarshal(jsonString, &product)
 
-		fmt.Println(product)
-
 		cartItem.Product = product
-
-		fmt.Println("========================",cartItem)
 
     	res_cart_item, err := s.workerRepository.AddCartItem(ctx,
 															 tx,
 															 cart, 
 															 cartItem)
-		if err != nil { 
+		if err != nil {
+			s.logger.Error().
+					Ctx(ctx).
+					Err(err).Send()
 			return nil, err
 		}
 		(*cart.CartItem)[i] = *res_cart_item

@@ -79,6 +79,10 @@ func (h *HttpRouters) ErrorHandler(trace_id string, err error) *go_core_json.API
    		httpStatusCode = http.StatusBadRequest
 	}
 
+	if strings.Contains(err.Error(), "INSERT has more target") {
+    	httpStatusCode = http.StatusInternalServerError
+	}
+
 	coreApiError = coreApiError.NewAPIError(err, trace_id, httpStatusCode)
 
 	return &coreApiError

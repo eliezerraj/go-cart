@@ -51,11 +51,11 @@ type Endpoint struct {
 	HttpTimeout		time.Duration `json:"httpTimeout"`
 }
 
-
 type Product struct {
 	ID			int			`json:"id,omitempty"`
 	Sku			string		`json:"sku,omitempty"`
 	Type		string 		`json:"type,omitempty"`
+	Status		string 		`json:"status,omitempty"`
 	Name		string 		`json:"name,omitempty"`
 	CreatedAt	time.Time 	`json:"created_at,omitempty"`
 	UpdatedAt	*time.Time 	`json:"update_at,omitempty"`	
@@ -70,10 +70,12 @@ type Cart struct {
 }
 
 type CartItem struct {
-	ID				int	`json:"id,omitempty"`
-	Product 		Product	 `json:"product"`
-	Quantity		int	`json:"quantity,omitempty"`
+	ID				int		`json:"id,omitempty"`
+	Product 		Product	`json:"product"`
+	Status			string 	`json:"status,omitempty"`
+	Quantity		int		`json:"quantity,omitempty"`
 	Discount		float64	`json:"discount,omitempty"`
+	Currency		string 	`json:"currency,omitempty"`	
 	Price			float64	`json:"price,omitempty"`
 	CreatedAt		time.Time 	`json:"created_at,omitempty"`
 	UpdatedAt		*time.Time 	`json:"update_at,omitempty"`	

@@ -133,17 +133,21 @@ func (w* WorkerRepository) AddCartItem(ctx context.Context,
 	// Query Execute
 	query := `INSERT INTO cart_item ( 	fk_cart_id,
 										fk_product_id,
+										status,
+										currency,
 										quantity,
 										price, 
 										created_at)
-				VALUES($1, $2, $3, $4, $5) RETURNING id`
+				VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id`
 
 	row := tx.QueryRow(	ctx, 
 						query,
 						cart.ID,
 						cartItem.Product.ID,
+						cartItem.Status,
+						cartItem.Currency,
+						cartItem.Quantity,	
 						cartItem.Price,
-						cartItem.Quantity,					
 						cartItem.CreatedAt)
 						
 	if err := row.Scan(&id); err != nil {
@@ -158,7 +162,6 @@ func (w* WorkerRepository) AddCartItem(ctx context.Context,
 	
 	return cartItem , nil
 }
-
 
 // About get a cart_item
 func (w *WorkerRepository) GetCart(ctx context.Context,
@@ -190,10 +193,13 @@ func (w *WorkerRepository) GetCart(ctx context.Context,
 					p.sku,
 					p.type,
 					p.name,
+					p.status,
 					p.created_at,
 					p.updated_at,
 					ca_it.id,
+					ca_it.status,
 					ca_it.quantity,
+					ca_it.currency,
 					ca_it.price,
 					ca_it.discount,
 					ca_it.created_at,
@@ -242,11 +248,14 @@ func (w *WorkerRepository) GetCart(ctx context.Context,
 							&resProduct.Sku, 
 							&resProduct.Type,
 							&resProduct.Name,
+							&resProduct.Status,
 							&resProduct.CreatedAt,
 							&nullProductUpdatedAt,
 
-							&resCartItem.ID, 
+							&resCartItem.ID,
+							&resCartItem.Status, 
 							&resCartItem.Quantity, 
+							&resCartItem.Currency, 							
 							&resCartItem.Price,
 							&resCartItem.Discount, 
 							&resCartItem.CreatedAt,
