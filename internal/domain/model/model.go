@@ -45,7 +45,6 @@ type Server struct {
 type Endpoint struct {
 	Name			string `json:"name_service"`
 	Url				string `json:"url"`
-	Method			string `json:"method"`
 	XApigwApiId		string `json:"x-apigw-api-id,omitempty"`
 	HostName		string `json:"host_name"`
 	HttpTimeout		time.Duration `json:"httpTimeout"`
@@ -64,6 +63,7 @@ type Product struct {
 type Cart struct {
 	ID				int			`json:"id,omitempty"`
 	UserId			string		`json:"user_id,omitempty"`
+	Status			string 	`json:"status,omitempty"`
 	CartItem 		*[]CartItem	`json:"cart_item,omitempty"` 	
 	CreatedAt		time.Time 	`json:"created_at,omitempty"`
 	UpdatedAt		*time.Time 	`json:"update_at,omitempty"`	

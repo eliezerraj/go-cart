@@ -29,6 +29,36 @@ type WorkerService struct {
 	httpService			*go_core_http.HttpService		 	
 }
 
+// about do http call 
+func (s *WorkerService) doHttpCall(ctx context.Context,
+									httpClientParameter go_core_http.HttpClientParameter) (interface{},error) {
+		
+	resPayload, statusCode, err := s.httpService.DoHttp(ctx, 
+														httpClientParameter)
+	if err != nil {
+		s.logger.Error().
+				Ctx(ctx).
+				Err(err).Send()
+		return nil, err
+	}
+
+	if statusCode != http.StatusOK {
+		if statusCode == http.StatusNotFound {
+			s.logger.Error().
+					Ctx(ctx).
+					Err(erro.ErrNotFound).Send()
+			return nil, erro.ErrNotFound
+		} else {
+			s.logger.Error().
+					Ctx(ctx).
+					Err(erro.ErrBadRequest).Send()
+			return nil, erro.ErrBadRequest 
+		}
+	}
+
+	return resPayload, nil
+}
+
 // About new worker service
 func NewWorkerService(appServer	*model.AppServer,
 					  workerRepository *database.WorkerRepository, 
@@ -80,9 +110,8 @@ func (s * WorkerService) HealthCheck(ctx context.Context) error {
 // About create a cart and cart itens
 func (s *WorkerService) AddCart(ctx context.Context, 
 								cart *model.Cart) (*model.Cart, error){
-	// trace
+	// trace and log 
 	ctx, span := tracerProvider.SpanCtx(ctx, "service.AddCart")
-	defer span.End()
 
 	s.logger.Info().
 			Ctx(ctx).
@@ -93,7 +122,6 @@ func (s *WorkerService) AddCart(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	defer s.workerRepository.DatabasePG.ReleaseTx(conn)
 
 	// handle connection
 	defer func() {
@@ -102,11 +130,13 @@ func (s *WorkerService) AddCart(ctx context.Context,
 		} else {
 			tx.Commit(ctx)
 		}
+		s.workerRepository.DatabasePG.ReleaseTx(conn)
 		span.End()
 	}()
 
 	// prepare data
 	cart.CreatedAt = time.Now()
+	cart.Status = "BASKET"
 
 	// Create cart
 	res_cart, err := s.workerRepository.AddCart(ctx, tx, cart)
@@ -115,7 +145,7 @@ func (s *WorkerService) AddCart(ctx context.Context,
 	}
 	cart.ID = res_cart.ID
 
-	// Prepare the http headers
+	// prepare headers http for calling services
 	trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
 
 	headers := map[string]string{
@@ -124,42 +154,32 @@ func (s *WorkerService) AddCart(ctx context.Context,
 		//"Host": s.apiService[0].HostName,
 	}
 
-	// Call service inventory for product
-	var httpClientParameter go_core_http.HttpClientParameter
-
 	// Create cart itens
     for i := range *cart.CartItem { 
 		cartItem := &(*cart.CartItem)[i]
 
 		// prepare data
 		cartItem.CreatedAt = cart.CreatedAt
-		cartItem.Status = "BASKET"
+		cartItem.Status = "BASKET:PRODUCT"
 
-		httpClientParameter = go_core_http.HttpClientParameter {
+		httpClientParameter := go_core_http.HttpClientParameter {
 			Url:  (*s.appServer.Endpoint)[0].Url + "/product/" + cartItem.Product.Sku,
-			Method: (*s.appServer.Endpoint)[0].Method,
+			Method: "GET",
 			Timeout: (*s.appServer.Endpoint)[0].HttpTimeout,
 			Headers: &headers,
 		}
 		
-		res_payload, statusCode, err := s.httpService.DoHttp(ctx, 
-															httpClientParameter)
-
+		// call a service via http
+		resPayload, err := s.doHttpCall(ctx, 
+										httpClientParameter)
 		if err != nil {
 			s.logger.Error().
 					Ctx(ctx).
 					Err(err).Send()
 			return nil, err
 		}
-		if statusCode != http.StatusOK {
-			if statusCode == http.StatusNotFound {
-				return nil, erro.ErrNotFound
-			} else {
-				return nil, erro.ErrBadRequest 
-			}
-		}
 
-		jsonString, err  := json.Marshal(res_payload)
+		jsonString, err  := json.Marshal(resPayload)
 		if err != nil {
 			s.logger.Error().
 					Ctx(ctx).
@@ -198,7 +218,6 @@ func (s * WorkerService) GetCart(ctx context.Context,
 			Ctx(ctx).
 			Str("func","GetCart").Send()
 
-			
 	// Call a service
 	resCart, err := s.workerRepository.GetCart(ctx, cart)
 	if err != nil {
@@ -206,4 +225,98 @@ func (s * WorkerService) GetCart(ctx context.Context,
 	}
 								
 	return resCart, nil
+}
+
+// About update cart
+func (s * WorkerService) UpdateCart(ctx context.Context, 
+									cart *model.Cart) (*model.Cart, error){
+	// trace
+	ctx, span := tracerProvider.SpanCtx(ctx, "service.UpdateCart")
+
+	s.logger.Info().
+			Ctx(ctx).
+			Str("func","UpdateCart").Send()
+
+	// prepare database
+	tx, conn, err := s.workerRepository.DatabasePG.StartTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer s.workerRepository.DatabasePG.ReleaseTx(conn)
+
+	// handle connection
+	defer func() {
+		if err != nil {
+			tx.Rollback(ctx)
+		} else {
+			tx.Commit(ctx)
+		}
+		s.workerRepository.DatabasePG.ReleaseTx(conn)
+		span.End()
+	}()
+
+	// business logic
+	now := time.Now()
+	cart.UpdatedAt = &now
+
+	// Call a service
+	row, err := s.workerRepository.UpdateCart(ctx, tx, cart)
+	if err != nil {
+		return nil, err
+	}
+	if row == 0 {
+		s.logger.Error().
+				Ctx(ctx).
+				Err(erro.ErrUpdate).Send()
+		return nil, erro.ErrUpdate
+	}
+
+	return cart, nil
+}
+
+// About update cart
+func (s * WorkerService) UpdateCartItem(ctx context.Context, 
+										cartItem *model.CartItem) (*model.CartItem, error){
+	// trace
+	ctx, span := tracerProvider.SpanCtx(ctx, "service.UpdateCartItem")
+
+	s.logger.Info().
+			Ctx(ctx).
+			Str("func","UpdateCartItem").Send()
+
+	// prepare database
+	tx, conn, err := s.workerRepository.DatabasePG.StartTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer s.workerRepository.DatabasePG.ReleaseTx(conn)
+
+	// handle connection
+	defer func() {
+		if err != nil {
+			tx.Rollback(ctx)
+		} else {
+			tx.Commit(ctx)
+		}
+		s.workerRepository.DatabasePG.ReleaseTx(conn)
+		span.End()
+	}()
+
+	// business logic
+	now := time.Now()
+	cartItem.UpdatedAt = &now
+
+	// Call a service
+	row, err := s.workerRepository.UpdateCartItem(ctx, tx, cartItem)
+	if err != nil {
+		return nil, err
+	}
+	if row == 0 {
+		s.logger.Error().
+				Ctx(ctx).
+				Err(erro.ErrUpdate).Send()
+		return nil, erro.ErrUpdate
+	}
+
+	return cartItem, nil
 }
