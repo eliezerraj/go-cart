@@ -17,13 +17,14 @@ import (
 	"github.com/go-cart/internal/domain/model"
 	"github.com/go-cart/internal/domain/service"
 
-	go_core_json "github.com/eliezerraj/go-core/coreJson"
-	go_core_otel_trace "github.com/eliezerraj/go-core/otel/trace"
+	go_core_midleware "github.com/eliezerraj/go-core/v2/middleware"
+	go_core_otel_trace "github.com/eliezerraj/go-core/v2/otel/trace"
 )
 
 var (
-	coreJson 		go_core_json.CoreJson
-	coreApiError 	go_core_json.APIError
+	coreMiddleWareApiError	go_core_midleware.APIError
+	coreMiddleWareWriteJSON	go_core_midleware.MiddleWare
+
 	tracerProvider go_core_otel_trace.TracerProvider
 )
 
@@ -58,7 +59,7 @@ func NewHttpRouters(appServer *model.AppServer,
 }
 
 // About handle error
-func (h *HttpRouters) ErrorHandler(trace_id string, err error) *go_core_json.APIError {
+func (h *HttpRouters) ErrorHandler(trace_id string, err error) *go_core_midleware.APIError {
 
 	var httpStatusCode int = http.StatusInternalServerError
 
@@ -79,13 +80,11 @@ func (h *HttpRouters) ErrorHandler(trace_id string, err error) *go_core_json.API
    		httpStatusCode = http.StatusBadRequest
 	}
 
-	if strings.Contains(err.Error(), "INSERT has more target") {
-    	httpStatusCode = http.StatusInternalServerError
-	}
+	coreMiddleWareApiError = coreMiddleWareApiError.NewAPIError(err, 
+																trace_id, 
+																httpStatusCode)
 
-	coreApiError = coreApiError.NewAPIError(err, trace_id, httpStatusCode)
-
-	return &coreApiError
+	return &coreMiddleWareApiError
 }
 
 // About return a health
@@ -171,7 +170,7 @@ func (h *HttpRouters) AddCart(rw http.ResponseWriter, req *http.Request) error {
 		return h.ErrorHandler(trace_id, err)
 	}
 	
-	return coreJson.WriteJSON(rw, http.StatusOK, res)
+	return coreMiddleWareWriteJSON.WriteJSON(rw, http.StatusOK, res)
 }
 
 // About get cart and cart itens
@@ -206,7 +205,7 @@ func (h *HttpRouters) GetCart(rw http.ResponseWriter, req *http.Request) error {
 		return h.ErrorHandler(trace_id, err)
 	}
 	
-	return coreJson.WriteJSON(rw, http.StatusOK, res)
+	return coreMiddleWareWriteJSON.WriteJSON(rw, http.StatusOK, res)
 }
 
 // About update cart
@@ -251,7 +250,7 @@ func (h *HttpRouters) UpdateCart(rw http.ResponseWriter, req *http.Request) erro
 		return h.ErrorHandler(trace_id, err)
 	}
 	
-	return coreJson.WriteJSON(rw, http.StatusOK, res)
+	return coreMiddleWareWriteJSON.WriteJSON(rw, http.StatusOK, res)
 }
 
 // About update cartItem
@@ -296,5 +295,5 @@ func (h *HttpRouters) UpdateCartItem(rw http.ResponseWriter, req *http.Request) 
 		return h.ErrorHandler(trace_id, err)
 	}
 	
-	return coreJson.WriteJSON(rw, http.StatusOK, res)
+	return coreMiddleWareWriteJSON.WriteJSON(rw, http.StatusOK, res)
 }

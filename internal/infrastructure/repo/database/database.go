@@ -11,8 +11,8 @@ import (
 		"github.com/go-cart/shared/erro"
 		"github.com/go-cart/internal/domain/model"
 
-		go_core_otel_trace "github.com/eliezerraj/go-core/otel/trace"
-		go_core_db_pg "github.com/eliezerraj/go-core/database/postgre"
+		go_core_otel_trace "github.com/eliezerraj/go-core/v2/otel/trace"
+		go_core_db_pg "github.com/eliezerraj/go-core/v2/database/postgre"
 )
 
 var tracerProvider go_core_otel_trace.TracerProvider

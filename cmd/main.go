@@ -17,8 +17,8 @@ import(
 	"github.com/go-cart/internal/infrastructure/repo/database"
 	"github.com/go-cart/internal/domain/service"
 
-	go_core_otel_trace "github.com/eliezerraj/go-core/otel/trace"
-	go_core_db_pg "github.com/eliezerraj/go-core/database/postgre"
+	go_core_otel_trace "github.com/eliezerraj/go-core/v2/otel/trace"
+	go_core_db_pg "github.com/eliezerraj/go-core/v2/database/postgre"
 
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel"

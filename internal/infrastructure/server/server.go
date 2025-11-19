@@ -12,17 +12,13 @@ import(
 	"github.com/rs/zerolog"
 	"github.com/gorilla/mux"
 
-	go_core_midleware "github.com/eliezerraj/go-core/middleware"
+	go_core_midleware "github.com/eliezerraj/go-core/v2/middleware"
 
 	"github.com/go-cart/internal/domain/model"
 	app_http_routers "github.com/go-cart/internal/infrastructure/adapter/http"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
-)
-
-var(
-	go_core_middleware go_core_midleware.ToolsMiddleware
 )
 
 type HttpAppServer struct {
@@ -53,8 +49,10 @@ func (h *HttpAppServer) StartHttpAppServer(	ctx context.Context,
 			Str("func","StartHttpAppServer").Send()
 
 	appRouter := mux.NewRouter().StrictSlash(true)
-	appRouter.Use(go_core_middleware.MiddleWareHandlerHeader)
-
+	// creata a middleware component
+	appMiddleWare := go_core_midleware.NewMiddleWare(h.logger)	
+	appRouter.Use(appMiddleWare.MiddleWareHandlerHeader)
+	
 	appRouter.Handle("/metrics", promhttp.Handler())
 
 	health := appRouter.Methods(http.MethodGet, http.MethodOptions).Subrouter()
@@ -74,19 +72,19 @@ func (h *HttpAppServer) StartHttpAppServer(	ctx context.Context,
 	info.Use(otelmux.Middleware(h.appServer.Application.Name))
 
 	add := appRouter.Methods(http.MethodPost, http.MethodOptions).Subrouter()
-	add.HandleFunc("/cart", go_core_middleware.MiddleWareErrorHandler(appHttpRouters.AddCart))		
+	add.HandleFunc("/cart", appMiddleWare.MiddleWareErrorHandler(appHttpRouters.AddCart))		
 	add.Use(otelmux.Middleware(h.appServer.Application.Name))
 
 	get := appRouter.Methods(http.MethodGet, http.MethodOptions).Subrouter()
-	get.HandleFunc("/cart/{id}",go_core_middleware.MiddleWareErrorHandler(appHttpRouters.GetCart))		
+	get.HandleFunc("/cart/{id}",appMiddleWare.MiddleWareErrorHandler(appHttpRouters.GetCart))		
 	get.Use(otelmux.Middleware(h.appServer.Application.Name))
 
 	put := appRouter.Methods(http.MethodPut, http.MethodOptions).Subrouter()
-	put.HandleFunc("/cart/{id}",go_core_middleware.MiddleWareErrorHandler(appHttpRouters.UpdateCart))		
+	put.HandleFunc("/cart/{id}",appMiddleWare.MiddleWareErrorHandler(appHttpRouters.UpdateCart))		
 	put.Use(otelmux.Middleware(h.appServer.Application.Name))
 
 	putCartItem := appRouter.Methods(http.MethodPut, http.MethodOptions).Subrouter()
-	putCartItem.HandleFunc("/cartItem/{id}",go_core_middleware.MiddleWareErrorHandler(appHttpRouters.UpdateCartItem))		
+	putCartItem.HandleFunc("/cartItem/{id}",appMiddleWare.MiddleWareErrorHandler(appHttpRouters.UpdateCartItem))		
 	putCartItem.Use(otelmux.Middleware(h.appServer.Application.Name))
 
 	// -------   Server Http 
