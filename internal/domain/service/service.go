@@ -96,13 +96,41 @@ func (s * WorkerService) HealthCheck(ctx context.Context) error {
 	err := s.workerRepository.DatabasePG.Ping()
 	if err != nil {
 		s.logger.Error().
-				Err(err).Msg("*** Database HEALTH FAILED ***")
+				Err(err).Msg("*** Database HEALTH CHECK FAILED ***")
 		return erro.ErrHealthCheck
 	}
 
 	s.logger.Info().
 			Str("func","HealthCheck").
-			Msg("*** Database HEALTH SUCCESSFULL ***")
+			Msg("*** Database HEALTH CHECK SUCCESSFULL ***")
+
+	// check service/dependencies 
+	headers := map[string]string{
+		"Content-Type":  "application/json;charset=UTF-8",
+	}
+
+	httpClientParameter := go_core_http.HttpClientParameter {
+		Url:	(*s.appServer.Endpoint)[0].Url + "/health",
+		Method:	"GET",
+		Timeout: (*s.appServer.Endpoint)[0].HttpTimeout,
+		Headers: &headers,
+	}
+
+	// call a service via http
+	_, err = s.doHttpCall(ctx, 
+						   httpClientParameter)
+	if err != nil {
+		s.logger.Error().
+				Ctx(ctx).
+				Err(err).Msgf("*** Service %s HEALTH CHECK FAILED ***", (*s.appServer.Endpoint)[0].HostName )
+		return erro.ErrHealthCheck
+	}
+	s.logger.Info().
+			Str("func","HealthCheck").
+			Msgf("*** Service %s HEALTH CHECK SUCCESSFULL ***", (*s.appServer.Endpoint)[0].HostName )
+
+
+
 
 	return nil
 }

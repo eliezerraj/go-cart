@@ -42,19 +42,22 @@ func NewHttpAppServer(	appServer *model.AppServer,
 	}
 }
 
+// About start http server
 func (h *HttpAppServer) StartHttpAppServer(	ctx context.Context, 
 											appHttpRouters app_http_routers.HttpRouters,
 											) {
 	h.logger.Info().
 			Str("func","StartHttpAppServer").Send()
 
+	// create a middleware component			
 	appRouter := mux.NewRouter().StrictSlash(true)
-	// creata a middleware component
+
 	appMiddleWare := go_core_midleware.NewMiddleWare(h.logger)	
 	appRouter.Use(appMiddleWare.MiddleWareHandlerHeader)
 	
 	appRouter.Handle("/metrics", promhttp.Handler())
-
+	
+	// setting routers
 	health := appRouter.Methods(http.MethodGet, http.MethodOptions).Subrouter()
     health.HandleFunc("/health", appHttpRouters.Health)
 
@@ -88,7 +91,6 @@ func (h *HttpAppServer) StartHttpAppServer(	ctx context.Context,
 	putCartItem.Use(otelmux.Middleware(h.appServer.Application.Name))
 
 	// -------   Server Http 
-
 	srv := http.Server{
 		Addr:         ":" +  strconv.Itoa(h.appServer.Server.Port),      	
 		Handler:      appRouter,                	          
@@ -100,6 +102,7 @@ func (h *HttpAppServer) StartHttpAppServer(	ctx context.Context,
 	h.logger.Info().
 			Str("Service Port", strconv.Itoa(h.appServer.Server.Port)).Send()
 
+	// start server		
 	go func() {
 		err := srv.ListenAndServe()
 		if err != nil {
@@ -108,7 +111,7 @@ func (h *HttpAppServer) StartHttpAppServer(	ctx context.Context,
 		}
 	}()
 
-	// Get SIGNALS
+	// Get SIGNALS and handle shutdown
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 
