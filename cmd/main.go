@@ -22,7 +22,6 @@ import(
 
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/trace"	
 	"go.opentelemetry.io/otel/propagation"
 )
 
@@ -35,7 +34,7 @@ var (
 
 	appInfoTrace 		go_core_otel_trace.InfoTrace
 	appTracerProvider 	go_core_otel_trace.TracerProvider
-	tracer				trace.Tracer
+	sdkTracerProvider *sdktrace.TracerProvider	
 )
 
 // About init
@@ -108,7 +107,6 @@ func main (){
 	// create context and otel log provider
 	ctx, cancel := context.WithCancel(context.Background())
 
-	var tracerProvider *sdktrace.TracerProvider
 	if appServer.Application.OtelTraces {
 		appInfoTrace.Name = appServer.Application.Name
 		appInfoTrace.Version = appServer.Application.Version
@@ -116,14 +114,14 @@ func main (){
 		appInfoTrace.Env = appServer.Application.Env
 		appInfoTrace.Account = appServer.Application.Account
 
-		tracerProvider = appTracerProvider.NewTracerProvider(ctx, 
-															*appServer.EnvTrace, 
-															appInfoTrace,
-															&appLogger)
+		sdkTracerProvider = appTracerProvider.NewTracerProvider(ctx, 
+																*appServer.EnvTrace, 
+																appInfoTrace,
+																&appLogger)
 
 		otel.SetTextMapPropagator(propagation.TraceContext{})
-		otel.SetTracerProvider(tracerProvider)
-		tracer = tracerProvider.Tracer(appServer.Application.Name)
+		otel.SetTracerProvider(sdkTracerProvider)
+		sdkTracerProvider.Tracer(appServer.Application.Name)
 	}
 
 	// Open prepare database
@@ -177,8 +175,8 @@ func main (){
 	// Cancel everything
 	defer func() {
 		// cancel log provider
-		if tracerProvider != nil {
-			err := tracerProvider.Shutdown(ctx)
+		if sdkTracerProvider != nil {
+			err := sdkTracerProvider.Shutdown(ctx)
 			if err != nil{
 				logger.Error().
 						Err(err).
