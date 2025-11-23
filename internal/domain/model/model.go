@@ -45,7 +45,7 @@ type Server struct {
 type Endpoint struct {
 	Name			string `json:"name_service"`
 	Url				string `json:"url"`
-	XApigwApiId		string `json:"x-apigw-api-id,omitempty"`
+	XApigwApiId		string `json:"x-apigw-api-id,omitempty"` //just in case to call APIGW private via vpce
 	HostName		string `json:"host_name"`
 	HttpTimeout		time.Duration `json:"httpTimeout"`
 }

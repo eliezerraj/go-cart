@@ -40,6 +40,7 @@ func NewWorkerRepository(databasePG *go_core_db_pg.DatabasePGServer,
 // Above get stats from database
 func (w *WorkerRepository) Stat(ctx context.Context) (go_core_db_pg.PoolStats){
 	w.logger.Info().
+			Ctx(ctx).
 			Str("func","Stat").Send()
 	
 	stats := w.DatabasePG.Stat()

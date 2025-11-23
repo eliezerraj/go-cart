@@ -82,6 +82,7 @@ func NewWorkerService(appServer	*model.AppServer,
 // About database stats
 func (s *WorkerService) Stat(ctx context.Context) (go_core_db_pg.PoolStats){
 	s.logger.Info().
+			Ctx(ctx).
 			Str("func","Stat").Send()
 
 	return s.workerRepository.Stat(ctx)
@@ -90,25 +91,35 @@ func (s *WorkerService) Stat(ctx context.Context) (go_core_db_pg.PoolStats){
 // About check health service
 func (s * WorkerService) HealthCheck(ctx context.Context) error {
 	s.logger.Info().
+			Ctx(ctx).
 			Str("func","HealthCheck").Send()
 
+	ctx, span := tracerProvider.SpanCtx(ctx, "service.HealthCheck")
+	defer span.End()
+
 	// Check database health
+	_, spanDB := tracerProvider.SpanCtx(ctx, "DatabasePG.Ping")
 	err := s.workerRepository.DatabasePG.Ping()
 	if err != nil {
 		s.logger.Error().
+				Ctx(ctx).
 				Err(err).Msg("*** Database HEALTH CHECK FAILED ***")
 		return erro.ErrHealthCheck
 	}
+	spanDB.End()
 
 	s.logger.Info().
+			Ctx(ctx).
 			Str("func","HealthCheck").
 			Msg("*** Database HEALTH CHECK SUCCESSFULL ***")
 
+	// ------------------------------------------------------------
 	// check service/dependencies 
 	headers := map[string]string{
 		"Content-Type":  "application/json;charset=UTF-8",
 	}
 
+	ctxService00, spanService00 := tracerProvider.SpanCtx(ctx, "health.service." + (*s.appServer.Endpoint)[0].HostName )
 	httpClientParameter := go_core_http.HttpClientParameter {
 		Url:	(*s.appServer.Endpoint)[0].Url + "/health",
 		Method:	"GET",
@@ -117,20 +128,20 @@ func (s * WorkerService) HealthCheck(ctx context.Context) error {
 	}
 
 	// call a service via http
-	_, err = s.doHttpCall(ctx, 
+	_, err = s.doHttpCall(ctxService00, 
 						   httpClientParameter)
 	if err != nil {
 		s.logger.Error().
-				Ctx(ctx).
+				Ctx(ctxService00).
 				Err(err).Msgf("*** Service %s HEALTH CHECK FAILED ***", (*s.appServer.Endpoint)[0].HostName )
 		return erro.ErrHealthCheck
 	}
+	spanService00.End()
+
 	s.logger.Info().
+			Ctx(ctx).
 			Str("func","HealthCheck").
 			Msgf("*** Service %s HEALTH CHECK SUCCESSFULL ***", (*s.appServer.Endpoint)[0].HostName )
-
-
-
 
 	return nil
 }
@@ -179,7 +190,6 @@ func (s *WorkerService) AddCart(ctx context.Context,
 	headers := map[string]string{
 		"Content-Type":  "application/json;charset=UTF-8",
 		"X-Request-Id": trace_id,
-		//"Host": s.apiService[0].HostName,
 	}
 
 	// Create cart itens
