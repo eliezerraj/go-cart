@@ -3,8 +3,8 @@ package model
 import (
 	"time"
 	
-	go_core_db_pg 		"github.com/eliezerraj/go-core/database/postgre"
-	go_core_otel_trace "github.com/eliezerraj/go-core/otel/trace"
+	go_core_db_pg 		"github.com/eliezerraj/go-core/v2/database/postgre"
+	go_core_otel_trace "github.com/eliezerraj/go-core/v2/otel/trace"
 )
 
 type AppServer struct {
@@ -45,17 +45,16 @@ type Server struct {
 type Endpoint struct {
 	Name			string `json:"name_service"`
 	Url				string `json:"url"`
-	Method			string `json:"method"`
-	XApigwApiId		string `json:"x-apigw-api-id,omitempty"`
+	XApigwApiId		string `json:"x-apigw-api-id,omitempty"` //just in case to call APIGW private via vpce
 	HostName		string `json:"host_name"`
 	HttpTimeout		time.Duration `json:"httpTimeout"`
 }
-
 
 type Product struct {
 	ID			int			`json:"id,omitempty"`
 	Sku			string		`json:"sku,omitempty"`
 	Type		string 		`json:"type,omitempty"`
+	Status		string 		`json:"status,omitempty"`
 	Name		string 		`json:"name,omitempty"`
 	CreatedAt	time.Time 	`json:"created_at,omitempty"`
 	UpdatedAt	*time.Time 	`json:"update_at,omitempty"`	
@@ -64,16 +63,19 @@ type Product struct {
 type Cart struct {
 	ID				int			`json:"id,omitempty"`
 	UserId			string		`json:"user_id,omitempty"`
+	Status			string 	`json:"status,omitempty"`
 	CartItem 		*[]CartItem	`json:"cart_item,omitempty"` 	
 	CreatedAt		time.Time 	`json:"created_at,omitempty"`
 	UpdatedAt		*time.Time 	`json:"update_at,omitempty"`	
 }
 
 type CartItem struct {
-	ID				int	`json:"id,omitempty"`
-	Product 		Product	 `json:"product"`
-	Quantity		int	`json:"quantity,omitempty"`
+	ID				int		`json:"id,omitempty"`
+	Product 		Product	`json:"product"`
+	Status			string 	`json:"status,omitempty"`
+	Quantity		int		`json:"quantity,omitempty"`
 	Discount		float64	`json:"discount,omitempty"`
+	Currency		string 	`json:"currency,omitempty"`	
 	Price			float64	`json:"price,omitempty"`
 	CreatedAt		time.Time 	`json:"created_at,omitempty"`
 	UpdatedAt		*time.Time 	`json:"update_at,omitempty"`	

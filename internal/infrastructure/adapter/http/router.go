@@ -17,13 +17,14 @@ import (
 	"github.com/go-cart/internal/domain/model"
 	"github.com/go-cart/internal/domain/service"
 
-	go_core_json "github.com/eliezerraj/go-core/coreJson"
-	go_core_otel_trace "github.com/eliezerraj/go-core/otel/trace"
+	go_core_midleware "github.com/eliezerraj/go-core/v2/middleware"
+	go_core_otel_trace "github.com/eliezerraj/go-core/v2/otel/trace"
 )
 
 var (
-	coreJson 		go_core_json.CoreJson
-	coreApiError 	go_core_json.APIError
+	coreMiddleWareApiError	go_core_midleware.APIError
+	coreMiddleWareWriteJSON	go_core_midleware.MiddleWare
+
 	tracerProvider go_core_otel_trace.TracerProvider
 )
 
@@ -58,7 +59,7 @@ func NewHttpRouters(appServer *model.AppServer,
 }
 
 // About handle error
-func (h *HttpRouters) ErrorHandler(trace_id string, err error) *go_core_json.APIError {
+func (h *HttpRouters) ErrorHandler(trace_id string, err error) *go_core_midleware.APIError {
 
 	var httpStatusCode int = http.StatusInternalServerError
 
@@ -79,24 +80,20 @@ func (h *HttpRouters) ErrorHandler(trace_id string, err error) *go_core_json.API
    		httpStatusCode = http.StatusBadRequest
 	}
 
-	coreApiError = coreApiError.NewAPIError(err, trace_id, httpStatusCode)
+	coreMiddleWareApiError = coreMiddleWareApiError.NewAPIError(err, 
+																trace_id, 
+																httpStatusCode)
 
-	return &coreApiError
+	return &coreMiddleWareApiError
 }
 
 // About return a health
 func (h *HttpRouters) Health(rw http.ResponseWriter, req *http.Request) {
-	h.logger.Info().
-			Str("func","Health").Send()
-
 	json.NewEncoder(rw).Encode(model.MessageRouter{Message: "true"})
 }
 
 // About return a live
 func (h *HttpRouters) Live(rw http.ResponseWriter, req *http.Request) {
-	h.logger.Info().
-			Str("func","Live").Send()
-
 	json.NewEncoder(rw).Encode(model.MessageRouter{Message: "true"})
 }
 
@@ -143,7 +140,7 @@ func (h *HttpRouters) AddCart(rw http.ResponseWriter, req *http.Request) error {
 	ctx, cancel := context.WithTimeout(req.Context(), time.Duration(h.appServer.Server.CtxTimeout) * time.Second)
     defer cancel()
 
-	// trace	
+	// trace and log	
 	ctx, span := tracerProvider.SpanCtx(ctx, "adapter.http.AddCart")
 	defer span.End()
 	
@@ -151,8 +148,8 @@ func (h *HttpRouters) AddCart(rw http.ResponseWriter, req *http.Request) error {
 			Ctx(ctx).
 			Str("func","AddCart").Send()
 
+	// decode payload			
 	cart := model.Cart{}
-	
 	err := json.NewDecoder(req.Body).Decode(&cart)
     if err != nil {
 		trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
@@ -160,13 +157,14 @@ func (h *HttpRouters) AddCart(rw http.ResponseWriter, req *http.Request) error {
     }
 	defer req.Body.Close()
 
+	// call service
 	res, err := h.workerService.AddCart(ctx, &cart)
 	if err != nil {
 		trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
 		return h.ErrorHandler(trace_id, err)
 	}
 	
-	return coreJson.WriteJSON(rw, http.StatusOK, res)
+	return coreMiddleWareWriteJSON.WriteJSON(rw, http.StatusOK, res)
 }
 
 // About get cart and cart itens
@@ -201,5 +199,95 @@ func (h *HttpRouters) GetCart(rw http.ResponseWriter, req *http.Request) error {
 		return h.ErrorHandler(trace_id, err)
 	}
 	
-	return coreJson.WriteJSON(rw, http.StatusOK, res)
+	return coreMiddleWareWriteJSON.WriteJSON(rw, http.StatusOK, res)
+}
+
+// About update cart
+func (h *HttpRouters) UpdateCart(rw http.ResponseWriter, req *http.Request) error {
+	// extract context	
+	ctx, cancel := context.WithTimeout(req.Context(), time.Duration(h.appServer.Server.CtxTimeout) * time.Second)
+    defer cancel()
+
+	// trace	
+	ctx, span := tracerProvider.SpanCtx(ctx, "adapter.http.UpdateCart")
+	defer span.End()
+	
+	h.logger.Info().
+			Ctx(ctx).
+			Str("func","UpdateCart").Send()
+
+	// decode payload	
+	cart := model.Cart{}
+	err := json.NewDecoder(req.Body).Decode(&cart)
+    if err != nil {
+		trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
+		return h.ErrorHandler(trace_id, erro.ErrBadRequest)
+    }
+	defer req.Body.Close()
+
+	// get put parameter		
+	vars := mux.Vars(req)
+	varID := vars["id"]
+
+	varIDint, err := strconv.Atoi(varID)
+    if err != nil {
+		trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
+		return h.ErrorHandler(trace_id, erro.ErrBadRequest)
+    }
+
+	cart.ID = varIDint
+
+	// call service	
+	res, err := h.workerService.UpdateCart(ctx, &cart)
+	if err != nil {
+		trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
+		return h.ErrorHandler(trace_id, err)
+	}
+	
+	return coreMiddleWareWriteJSON.WriteJSON(rw, http.StatusOK, res)
+}
+
+// About update cartItem
+func (h *HttpRouters) UpdateCartItem(rw http.ResponseWriter, req *http.Request) error {
+	// extract context	
+	ctx, cancel := context.WithTimeout(req.Context(), time.Duration(h.appServer.Server.CtxTimeout) * time.Second)
+    defer cancel()
+
+	// trace	
+	ctx, span := tracerProvider.SpanCtx(ctx, "adapter.http.UpdateCartItem")
+	defer span.End()
+	
+	h.logger.Info().
+			Ctx(ctx).
+			Str("func","UpdateCartItem").Send()
+
+	// decode payload	
+	cartItem := model.CartItem{}
+	err := json.NewDecoder(req.Body).Decode(&cartItem)
+    if err != nil {
+		trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
+		return h.ErrorHandler(trace_id, erro.ErrBadRequest)
+    }
+	defer req.Body.Close()
+
+	// get put parameter		
+	vars := mux.Vars(req)
+	varID := vars["id"]
+
+	varIDint, err := strconv.Atoi(varID)
+    if err != nil {
+		trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
+		return h.ErrorHandler(trace_id, erro.ErrBadRequest)
+    }
+
+	cartItem.ID = varIDint
+
+	// call service	
+	res, err := h.workerService.UpdateCartItem(ctx, &cartItem)
+	if err != nil {
+		trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
+		return h.ErrorHandler(trace_id, err)
+	}
+	
+	return coreMiddleWareWriteJSON.WriteJSON(rw, http.StatusOK, res)
 }

@@ -11,8 +11,8 @@ import (
 		"github.com/go-cart/shared/erro"
 		"github.com/go-cart/internal/domain/model"
 
-		go_core_otel_trace "github.com/eliezerraj/go-core/otel/trace"
-		go_core_db_pg "github.com/eliezerraj/go-core/database/postgre"
+		go_core_otel_trace "github.com/eliezerraj/go-core/v2/otel/trace"
+		go_core_db_pg "github.com/eliezerraj/go-core/v2/database/postgre"
 )
 
 var tracerProvider go_core_otel_trace.TracerProvider
@@ -40,6 +40,7 @@ func NewWorkerRepository(databasePG *go_core_db_pg.DatabasePGServer,
 // Above get stats from database
 func (w *WorkerRepository) Stat(ctx context.Context) (go_core_db_pg.PoolStats){
 	w.logger.Info().
+			Ctx(ctx).
 			Str("func","Stat").Send()
 	
 	stats := w.DatabasePG.Stat()
@@ -58,7 +59,7 @@ func (w *WorkerRepository) Stat(ctx context.Context) (go_core_db_pg.PoolStats){
 	return resPoolStats
 }
 
-// About create a card
+// About create a cart
 func (w* WorkerRepository) AddCart(ctx context.Context, 
 									tx pgx.Tx, 
 									cart *model.Cart) (*model.Cart, error){
@@ -83,13 +84,15 @@ func (w* WorkerRepository) AddCart(ctx context.Context,
 	var id int
 
 	// Query Execute
-	query := `INSERT INTO cart ( user_id, 
-								created_at) 
-				VALUES($1, $2) RETURNING id`
+	query := `INSERT INTO cart ( user_id,
+								 status,	
+								 created_at) 
+				VALUES($1, $2, $3) RETURNING id`
 
 	row := tx.QueryRow(	ctx, 
 						query,
 						cart.UserId,
+						cart.Status,
 						cart.CreatedAt)
 						
 	if err := row.Scan(&id); err != nil {
@@ -133,17 +136,21 @@ func (w* WorkerRepository) AddCartItem(ctx context.Context,
 	// Query Execute
 	query := `INSERT INTO cart_item ( 	fk_cart_id,
 										fk_product_id,
+										status,
+										currency,
 										quantity,
 										price, 
 										created_at)
-				VALUES($1, $2, $3, $4, $5) RETURNING id`
+				VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id`
 
 	row := tx.QueryRow(	ctx, 
 						query,
 						cart.ID,
 						cartItem.Product.ID,
+						cartItem.Status,
+						cartItem.Currency,
+						cartItem.Quantity,	
 						cartItem.Price,
-						cartItem.Quantity,					
 						cartItem.CreatedAt)
 						
 	if err := row.Scan(&id); err != nil {
@@ -158,7 +165,6 @@ func (w* WorkerRepository) AddCartItem(ctx context.Context,
 	
 	return cartItem , nil
 }
-
 
 // About get a cart_item
 func (w *WorkerRepository) GetCart(ctx context.Context,
@@ -184,16 +190,20 @@ func (w *WorkerRepository) GetCart(ctx context.Context,
 	// Query and Execute
 	query := `select ca.id,
 					ca.user_id,
+					ca.status,
 					ca.created_at,
 					ca.updated_at,
 					p.id,
 					p.sku,
 					p.type,
 					p.name,
+					p.status,
 					p.created_at,
 					p.updated_at,
 					ca_it.id,
+					ca_it.status,
 					ca_it.quantity,
+					ca_it.currency,
 					ca_it.price,
 					ca_it.discount,
 					ca_it.created_at,
@@ -235,6 +245,7 @@ func (w *WorkerRepository) GetCart(ctx context.Context,
 	for rows.Next() {
 		err := rows.Scan(	&resCart.ID, 
 							&resCart.UserId,
+							&resCart.Status,
 							&resCart.CreatedAt,
 							&nullCartUpdatedAt,
 
@@ -242,11 +253,14 @@ func (w *WorkerRepository) GetCart(ctx context.Context,
 							&resProduct.Sku, 
 							&resProduct.Type,
 							&resProduct.Name,
+							&resProduct.Status,
 							&resProduct.CreatedAt,
 							&nullProductUpdatedAt,
 
-							&resCartItem.ID, 
+							&resCartItem.ID,
+							&resCartItem.Status, 
 							&resCartItem.Quantity, 
+							&resCartItem.Currency, 							
 							&resCartItem.Price,
 							&resCartItem.Discount, 
 							&resCartItem.CreatedAt,
@@ -260,7 +274,7 @@ func (w *WorkerRepository) GetCart(ctx context.Context,
         }
 
 		if nullCartUpdatedAt.Valid {
-        	resCart.UpdatedAt = &nullProductUpdatedAt.Time
+        	resCart.UpdatedAt = &nullCartUpdatedAt.Time
     	} else {
 			resCart.UpdatedAt = nil
 		}
@@ -289,4 +303,94 @@ func (w *WorkerRepository) GetCart(ctx context.Context,
 	}
 		
 	return &resCart, nil
+}
+
+// About update cart 
+func (w *WorkerRepository) UpdateCart(ctx context.Context, 
+									  tx pgx.Tx, 
+									  cart *model.Cart) (int64, error){
+	
+	// trace and log
+	ctx, span := tracerProvider.SpanCtx(ctx, "database.UpdateCart")
+	defer span.End()
+
+	w.logger.Info().
+			Ctx(ctx).
+			Str("func","UpdateCart").Send()
+
+	conn, err := w.DatabasePG.Acquire(ctx)
+	if err != nil {
+		w.logger.Error().
+				Ctx(ctx).
+				Err(err).Send()
+		return 0, errors.New(err.Error())
+	}
+	defer w.DatabasePG.Release(conn)
+
+	// Query Execute
+	query := `UPDATE cart
+				SET status = $3,
+					updated_at = $2
+				WHERE id = $1`
+
+	row, err := tx.Exec(ctx, 
+						query,	
+						cart.ID,
+						cart.UpdatedAt,
+						cart.Status,		
+					)
+	if err != nil {
+		w.logger.Error().
+				Ctx(ctx).
+				Str("func","UpdateCart").
+				Err(err).Send()
+		return 0, errors.New(err.Error())
+	}
+
+	return row.RowsAffected(), nil
+}
+
+// About update cart-item 
+func (w *WorkerRepository) UpdateCartItem(	ctx context.Context, 
+									  		tx pgx.Tx, 
+									  		cartItem *model.CartItem) (int64, error){
+	
+		// trace
+	ctx, span := tracerProvider.SpanCtx(ctx, "database.UpdateCartItem")
+	defer span.End()
+
+	w.logger.Info().
+			Ctx(ctx).
+			Str("func","UpdateCartItem").Send()
+
+	conn, err := w.DatabasePG.Acquire(ctx)
+	if err != nil {
+		w.logger.Error().
+				Ctx(ctx).
+				Err(err).Send()
+		return 0, errors.New(err.Error())
+	}
+	defer w.DatabasePG.Release(conn)
+
+	// Query Execute
+	query := `UPDATE cart_item
+				SET status = $3,
+					updated_at = $2
+				WHERE id = $1`
+
+	row, err := tx.Exec(ctx, 
+						query,	
+						cartItem.ID,
+						cartItem.UpdatedAt,
+						cartItem.Status,		
+					)
+	if err != nil {
+		w.logger.Error().
+				Ctx(ctx).
+				Str("func","UpdateCart").
+				Err(err).Send()
+		return 0, errors.New(err.Error())
+	}
+
+	return row.RowsAffected(), nil
 }
