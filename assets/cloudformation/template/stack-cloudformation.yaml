@@ -173,7 +173,15 @@ Resources:
       Namespace: !Ref Namespace
       ServiceAccount: !Ref ServiceAccountName
       RoleArn: !GetAtt PodIdentityIAMRole.Arn
-      
+
+  ESOPodIdentityAssociation:
+    Type: AWS::EKS::PodIdentityAssociation
+    Properties:
+      ClusterName: !Ref ClusterName
+      Namespace: external-secrets 
+      ServiceAccount: external-secrets
+      RoleArn: !GetAtt PodIdentityIAMRole.Arn
+            
 Outputs:
   EcrRepo:
     Value: !GetAtt EcrRepo.RepositoryUri
