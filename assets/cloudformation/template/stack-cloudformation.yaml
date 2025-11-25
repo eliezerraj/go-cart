@@ -38,7 +38,7 @@ Parameters:
   ClusterName:
     Type: String
     Description: The name of your EKS cluster.
-    Default: arch-eks-01-02
+    Default: arch-eks-02
   Namespace:
     Type: String
     Description: The Kubernetes namespace where the service account resides.
