@@ -13,7 +13,7 @@
   },
   {
     "ParameterKey": "ClusterName",
-    "ParameterValue": "arch-eks-01-02"
+    "ParameterValue": "arch-eks-02"
   },
   {
     "ParameterKey": "ServiceAccountName",
