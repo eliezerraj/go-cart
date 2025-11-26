@@ -13,10 +13,14 @@
   },
   {
     "ParameterKey": "ClusterName",
-    "ParameterValue": "arch-eks-02"
+    "ParameterValue": "arch-eks-002"
   },
   {
     "ParameterKey": "ServiceAccountName",
     "ParameterValue": "sa-go-cart"
+  },
+  {
+    "ParameterKey": "RoleName",
+    "ParameterValue": "GoClearance"
   }
 ]

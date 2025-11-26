@@ -8,11 +8,11 @@ metadata:
 data:
   VERSION: "1.0"
   ACCOUNT: "aws:992382474575"
-  APP_NAME: "go-cart.arch-eks-01-02"
+  APP_NAME: "go-cart.arch-eks-002"
   PORT: "7001"
   ENV: "dev"
 
-  DB_HOST: "rds-proxy-db-arch.proxy-couoacqalfwt.us-east-2.rds.amazonaws.com"
+  DB_HOST: "rds-proxy-db-arch-02.proxy-cj4aqa08ettf.us-east-2.rds.amazonaws.com"
   DB_PORT: "5432"
   DB_NAME: "postgres"
   DB_MAX_CONNECTION: "10"
