@@ -1,0 +1,8 @@
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: GatewayClass
+metadata:
+  name: aws-nlb-gateway-class
+  labels:
+    app: aws-nlb-gateway-class
+spec:
+  controllerName: gateway.k8s.aws/nlb

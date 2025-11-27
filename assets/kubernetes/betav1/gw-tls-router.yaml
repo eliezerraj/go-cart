@@ -1,0 +1,15 @@
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: TLSRoute
+metadata:
+  name: arch-eks-002-tls-route
+  namespace: test-a
+spec:
+  hostnames:
+    - go-cart.architecturedev.caradhras.io
+  parentRefs:
+  - name: arch-eks-002-nlb-gateway
+    sectionName: tls-listener
+  rules:
+  - backendRefs:
+    - name: svc-go-cart
+      port: 7001

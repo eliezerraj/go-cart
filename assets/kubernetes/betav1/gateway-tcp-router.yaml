@@ -1,0 +1,15 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: TCPRoute
+metadata:
+  name: arch-eks-002-tcp-route
+  namespace: test-a
+spec:
+  hostnames:
+    - go-cart.architecturedev.caradhras.io
+  parentRefs:
+  - name: arch-eks-002-nlb-gateway
+    sectionName: tcp-listener
+  rules:
+  - backendRefs:
+    - name: svc-go-cart
+      port: 7001

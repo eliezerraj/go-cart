@@ -6,7 +6,7 @@ metadata:
   labels:
     app: *app-name
 spec:
-  replicas: 2
+  replicas: 1
   strategy:
     type: RollingUpdate
   selector:
@@ -28,7 +28,7 @@ spec:
         fsGroup: 3000
       containers:
       - name: *app-name
-        image: 908671954593.dkr.ecr.us-east-2.amazonaws.com/go-cart:latest
+        image: 992382474575.dkr.ecr.us-east-2.amazonaws.com/go-cart:latest
         envFrom:
         - configMapRef:
             name: go-cart-cm

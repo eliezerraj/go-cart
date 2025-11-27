@@ -1,0 +1,31 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: arch-eks-002-nlb-gateway
+  namespace: test-a
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internal
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+    service.beta.kubernetes.io/aws-load-balancer-subnets: subnet-0ca2d45be9d6ab5bc, subnet-05d3e7f4611c12a23, subnet-0b2b57acbb1da0623
+spec:
+  gatewayClassName: aws-nlb-gateway-class
+  listeners:
+    - name: tls-listener
+      protocol: TLS
+      port: 443
+      hostname: "*.architecturedev.caradhras.io" 
+      tls:
+        mode: Terminate
+        options:
+          application-networking.k8s.aws/certificate-arn: arn:aws:acm:us-east-2:992382474575:certificate/6be53392-cd0e-46b2-98e9-d0d037abc90c
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: tcp-listener
+      protocol: TCP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: All
