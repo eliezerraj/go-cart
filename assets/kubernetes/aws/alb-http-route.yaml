@@ -1,0 +1,25 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: go-cart-route
+  namespace: test-a
+  labels:
+    app: go-cart-route
+spec:
+  hostnames:
+    - "go-cart.architecturedev.caradhras.io"
+  parentRefs:
+    - name: alb-arch-eks-002-gateway
+      namespace: test-a
+      sectionName: http-listener
+    - name: alb-arch-eks-002-gateway
+      namespace: test-a
+      sectionName: https-listener
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: svc-go-cart
+          port: 7001
