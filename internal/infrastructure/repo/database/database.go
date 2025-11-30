@@ -350,10 +350,99 @@ func (w *WorkerRepository) UpdateCart(ctx context.Context,
 	return row.RowsAffected(), nil
 }
 
+// About get a cart_item
+func (w *WorkerRepository) GetCartItem(ctx context.Context,
+									   cartItem *model.CartItem) (*model.CartItem, error) {
+	// trace
+	ctx, span := tracerProvider.SpanCtx(ctx, "database.GetCartItem")
+	defer span.End()
+
+	w.logger.Info().
+			Ctx(ctx).
+			Str("func","GetCartItem").Send()
+
+	// db connection
+	conn, err := w.DatabasePG.Acquire(ctx)
+	if err != nil {
+		w.logger.Error().
+				Ctx(ctx).
+				Err(err).Send()
+		return nil, errors.New(err.Error())
+	}
+	defer w.DatabasePG.Release(conn)
+
+	// Query and Execute
+	query := `select ca_it.id,
+					 ca_it.status,
+					 ca_it.quantity,
+					 ca_it.currency,
+					 ca_it.price,
+					 ca_it.discount,
+					 ca_it.created_at,
+					 ca_it.updated_at
+				from cart_item ca_it
+				where ca_it.id = $1`
+
+	rows, err := conn.Query(ctx, 
+							query, 
+							cartItem.ID)
+	if err != nil {
+		w.logger.Error().
+				Ctx(ctx).
+				Err(err).Send()
+		return nil, errors.New(err.Error())
+	}
+	defer rows.Close()
+	
+    if err := rows.Err(); err != nil {
+		w.logger.Error().
+				Ctx(ctx).
+				Err(err).Msg("fatal error closing rows")
+        return nil, errors.New(err.Error())
+    }
+
+	resCartItem := model.CartItem{}
+	var nullCartItemUpdatedAt sql.NullTime
+
+	for rows.Next() {
+		err := rows.Scan(	&resCartItem.ID,
+							&resCartItem.Status, 
+							&resCartItem.Quantity, 
+							&resCartItem.Currency, 							
+							&resCartItem.Price,
+							&resCartItem.Discount, 
+							&resCartItem.CreatedAt,
+							&nullCartItemUpdatedAt,
+						)
+		if err != nil {
+			w.logger.Error().
+					Ctx(ctx).
+					Err(err).Send()
+			return nil, errors.New(err.Error())
+        }
+
+		if nullCartItemUpdatedAt.Valid {
+        	resCartItem.UpdatedAt = &nullCartItemUpdatedAt.Time
+    	} else {
+			resCartItem.UpdatedAt = nil
+		}
+	}
+
+	if resCartItem == (model.CartItem{}) {
+		w.logger.Warn().
+				Ctx(ctx).
+				Err(err).Send()
+		return nil, erro.ErrNotFound
+	}
+		
+	return &resCartItem, nil
+}
+
+
 // About update cart-item 
-func (w *WorkerRepository) UpdateCartItem(	ctx context.Context, 
-									  		tx pgx.Tx, 
-									  		cartItem *model.CartItem) (int64, error){
+func (w *WorkerRepository) UpdateCartItem(ctx context.Context, 
+									  	  tx pgx.Tx, 
+									  	  cartItem *model.CartItem) (int64, error){
 	
 		// trace
 	ctx, span := tracerProvider.SpanCtx(ctx, "database.UpdateCartItem")
