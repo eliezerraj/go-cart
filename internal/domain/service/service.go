@@ -293,6 +293,12 @@ func (s * WorkerService) UpdateCart(ctx context.Context,
 		span.End()
 	}()
 
+	// check cart exists
+	_, err = s.workerRepository.GetCart(ctx, cart)
+	if err != nil {
+		return nil, err
+	}
+
 	// business logic
 	now := time.Now()
 	cart.UpdatedAt = &now
@@ -340,8 +346,15 @@ func (s * WorkerService) UpdateCartItem(ctx context.Context,
 		span.End()
 	}()
 
-	// business logic
+	// check cart item exists
+	resCartItem, err := s.workerRepository.GetCartItem(ctx, cartItem)
+	if err != nil {
+		return nil, err
+	}
+
+	// business logic (synchronize timestamps)
 	now := time.Now()
+	cartItem.CreatedAt = resCartItem.CreatedAt
 	cartItem.UpdatedAt = &now
 
 	// Call a service

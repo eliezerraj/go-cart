@@ -19,17 +19,17 @@ data:
   CTX_TIMEOUT: "5"
 
   LOG_LEVEL: "info" #info, error, warning
-  OTEL_EXPORTER_OTLP_ENDPOINT: "grafana.architecture.caradhras.io:4317"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "arch-eks-002-otel-collector.default.svc.cluster.local:4317"
 
-  OTEL_METRICS: "true"
+  OTEL_METRICS: "false"
   OTEL_STDOUT_TRACER: "false"
-  OTEL_TRACES: "true"
+  OTEL_TRACES: "false"
 
   OTEL_LOGS: "false"
   OTEL_STDOUT_LOG_GROUP: "false"
   LOG_GROUP: "/mnt/c/Eliezer/log/go-cart.log"
 
   NAME_SERVICE_00: "go-inventory"
-  URL_SERVICE_00: "http://localhost:7000"
+  URL_SERVICE_00: "https://go-inventory.architecture.caradhras.io/"
   HOST_SERVICE_00: "go-inventory"
   CLIENT_HTTP_TIMEOUT_00: "5"
