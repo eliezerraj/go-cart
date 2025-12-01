@@ -196,10 +196,6 @@ func (s *WorkerService) AddCart(ctx context.Context,
     for i := range *cart.CartItem { 
 		cartItem := &(*cart.CartItem)[i]
 
-		// prepare data
-		cartItem.CreatedAt = cart.CreatedAt
-		cartItem.Status = "BASKET:PRODUCT"
-
 		httpClientParameter := go_core_http.HttpClientParameter {
 			Url:  (*s.appServer.Endpoint)[0].Url + "/product/" + cartItem.Product.Sku,
 			Method: "GET",
@@ -227,6 +223,9 @@ func (s *WorkerService) AddCart(ctx context.Context,
 		product := model.Product{}
 		json.Unmarshal(jsonString, &product)
 
+		// prepare data
+		cartItem.CreatedAt = cart.CreatedAt
+		cartItem.Status = "BASKET:PRODUCT"
 		cartItem.Product = product
 
     	res_cart_item, err := s.workerRepository.AddCartItem(ctx,
@@ -247,7 +246,7 @@ func (s *WorkerService) AddCart(ctx context.Context,
 
 // About get cart and cart itens
 func (s * WorkerService) GetCart(ctx context.Context, 
-									cart *model.Cart) (*model.Cart, error){
+								 cart *model.Cart) (*model.Cart, error){
 	// trace
 	ctx, span := tracerProvider.SpanCtx(ctx, "service.GetCart")
 	defer span.End()
@@ -261,7 +260,47 @@ func (s * WorkerService) GetCart(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-								
+
+	// prepare headers http for calling services
+	trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
+	headers := map[string]string{
+		"Content-Type":  "application/json;charset=UTF-8",
+		"X-Request-Id": trace_id,
+	}
+
+	// Get product details for each cart item
+	for i := range *resCart.CartItem {
+		cartItem := &(*resCart.CartItem)[i]
+
+		httpClientParameter := go_core_http.HttpClientParameter {
+			Url:  fmt.Sprintf("%v%v%v", (*s.appServer.Endpoint)[0].Url, "/productId/", cartItem.Product.ID ),
+			Method: "GET",
+			Timeout: (*s.appServer.Endpoint)[0].HttpTimeout,
+			Headers: &headers,
+		}
+
+		// call a service via http
+		resPayload, err := s.doHttpCall(ctx, 
+										httpClientParameter)
+		if err != nil {
+			s.logger.Error().
+					Ctx(ctx).
+					Err(err).Send()
+			return nil, err
+		}
+
+		jsonString, err  := json.Marshal(resPayload)
+		if err != nil {
+			s.logger.Error().
+					Ctx(ctx).
+					Err(err).Send()
+			return nil, errors.New(err.Error())
+		}
+		product := model.Product{}
+		json.Unmarshal(jsonString, &product)
+		cartItem.Product = product
+	}
+
 	return resCart, nil
 }
 

@@ -193,13 +193,7 @@ func (w *WorkerRepository) GetCart(ctx context.Context,
 					ca.status,
 					ca.created_at,
 					ca.updated_at,
-					p.id,
-					p.sku,
-					p.type,
-					p.name,
-					p.status,
-					p.created_at,
-					p.updated_at,
+					ca_it.fk_product_id,
 					ca_it.id,
 					ca_it.status,
 					ca_it.quantity,
@@ -209,10 +203,8 @@ func (w *WorkerRepository) GetCart(ctx context.Context,
 					ca_it.created_at,
 					ca_it.updated_at
 				from cart ca,
-					cart_item ca_it,
-					product p
+					cart_item ca_it
 				where ca.id = ca_it.fk_cart_id
-				and p.id = ca_it.fk_product_id
 				and ca.id = $1`
 
 	rows, err := conn.Query(ctx, 
@@ -239,7 +231,6 @@ func (w *WorkerRepository) GetCart(ctx context.Context,
 	listCartItem := []model.CartItem{}
 
 	var nullCartUpdatedAt sql.NullTime
-	var nullProductUpdatedAt sql.NullTime
 	var nullCartItemUpdatedAt sql.NullTime
 
 	for rows.Next() {
@@ -250,12 +241,6 @@ func (w *WorkerRepository) GetCart(ctx context.Context,
 							&nullCartUpdatedAt,
 
 							&resProduct.ID, 
-							&resProduct.Sku, 
-							&resProduct.Type,
-							&resProduct.Name,
-							&resProduct.Status,
-							&resProduct.CreatedAt,
-							&nullProductUpdatedAt,
 
 							&resCartItem.ID,
 							&resCartItem.Status, 
@@ -277,11 +262,6 @@ func (w *WorkerRepository) GetCart(ctx context.Context,
         	resCart.UpdatedAt = &nullCartUpdatedAt.Time
     	} else {
 			resCart.UpdatedAt = nil
-		}
-		if nullProductUpdatedAt.Valid {
-        	resProduct.UpdatedAt = &nullProductUpdatedAt.Time
-    	} else {
-			resProduct.UpdatedAt = nil
 		}
 		if nullCartItemUpdatedAt.Valid {
         	resCartItem.UpdatedAt = &nullCartItemUpdatedAt.Time
