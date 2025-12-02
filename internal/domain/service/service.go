@@ -48,11 +48,23 @@ func (s *WorkerService) doHttpCall(ctx context.Context,
 					Ctx(ctx).
 					Err(erro.ErrNotFound).Send()
 			return nil, erro.ErrNotFound
-		} else {
+		} else {		
+			jsonString, err  := json.Marshal(resPayload)
+			if err != nil {
+				s.logger.Error().
+						Ctx(ctx).
+						Err(err).Send()
+				return nil, errors.New(err.Error())
+			}			
+			
+			message := model.APIError{}
+			json.Unmarshal(jsonString, &message)
+
+			newErr := errors.New(fmt.Sprintf("http call error: status code %d - message: %s", message.StatusCode ,message.Msg))
 			s.logger.Error().
 					Ctx(ctx).
-					Err(erro.ErrBadRequest).Send()
-			return nil, erro.ErrBadRequest 
+					Err(newErr).Send()
+			return nil, newErr
 		}
 	}
 
