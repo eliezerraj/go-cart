@@ -50,6 +50,12 @@ type Endpoint struct {
 	HttpTimeout		time.Duration `json:"httpTimeout"`
 }
 
+type APIError struct {
+	StatusCode	int    `json:"statusCode"`
+	Msg			string `json:"message"`
+	TraceId		string `json:"request-id,omitempty"`
+}
+
 type Product struct {
 	ID			int			`json:"id,omitempty"`
 	Sku			string		`json:"sku,omitempty"`
