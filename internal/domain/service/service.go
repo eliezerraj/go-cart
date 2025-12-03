@@ -44,9 +44,9 @@ func (s *WorkerService) doHttpCall(ctx context.Context,
 
 	if statusCode != http.StatusOK {
 		if statusCode == http.StatusNotFound {
-			s.logger.Error().
-					Ctx(ctx).
-					Err(erro.ErrNotFound).Send()
+			s.logger.Warn().
+					 Ctx(ctx).
+					 Err(erro.ErrNotFound).Send()
 			return nil, erro.ErrNotFound
 		} else {		
 			jsonString, err  := json.Marshal(resPayload)
@@ -221,9 +221,6 @@ func (s *WorkerService) AddCart(ctx context.Context,
 		resPayload, err := s.doHttpCall(ctx, 
 										httpClientParameter)
 		if err != nil {
-			s.logger.Error().
-					Ctx(ctx).
-					Err(err).Send()
 			return nil, err
 		}
 
@@ -247,9 +244,6 @@ func (s *WorkerService) AddCart(ctx context.Context,
 															 cart, 
 															 cartItem)
 		if err != nil {
-			s.logger.Error().
-					Ctx(ctx).
-					Err(err).Send()
 			return nil, err
 		}
 		(*cart.CartItem)[i] = *res_cart_item
@@ -297,9 +291,6 @@ func (s * WorkerService) GetCart(ctx context.Context,
 		resPayload, err := s.doHttpCall(ctx, 
 										httpClientParameter)
 		if err != nil {
-			s.logger.Error().
-					Ctx(ctx).
-					Err(err).Send()
 			return nil, err
 		}
 
@@ -363,8 +354,8 @@ func (s * WorkerService) UpdateCart(ctx context.Context,
 	}
 	if row == 0 {
 		s.logger.Error().
-				Ctx(ctx).
-				Err(erro.ErrUpdate).Send()
+				 Ctx(ctx).
+				 Err(erro.ErrUpdate).Send()
 		return nil, erro.ErrUpdate
 	}
 
@@ -417,8 +408,8 @@ func (s * WorkerService) UpdateCartItem(ctx context.Context,
 	}
 	if row == 0 {
 		s.logger.Error().
-				Ctx(ctx).
-				Err(erro.ErrUpdate).Send()
+				 Ctx(ctx).
+				 Err(erro.ErrUpdate).Send()
 		return nil, erro.ErrUpdate
 	}
 
