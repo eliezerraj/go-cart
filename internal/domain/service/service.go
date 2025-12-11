@@ -32,7 +32,10 @@ type WorkerService struct {
 // about do http call 
 func (s *WorkerService) doHttpCall(ctx context.Context,
 									httpClientParameter go_core_http.HttpClientParameter) (interface{},error) {
-		
+	s.logger.Info().
+			 Ctx(ctx).
+			 Str("func","doHttpCall").Send()
+
 	resPayload, statusCode, err := s.httpService.DoHttp(ctx, 
 														httpClientParameter)
 	if err != nil {
@@ -161,12 +164,12 @@ func (s * WorkerService) HealthCheck(ctx context.Context) error {
 // About create a cart and cart itens
 func (s *WorkerService) AddCart(ctx context.Context, 
 								cart *model.Cart) (*model.Cart, error){
-	// trace and log 
-	ctx, span := tracerProvider.SpanCtx(ctx, "service.AddCart")
-
 	s.logger.Info().
 			Ctx(ctx).
 			Str("func","AddCart").Send()
+
+	// trace and log 
+	ctx, span := tracerProvider.SpanCtx(ctx, "service.AddCart")
 
 	// prepare database
 	tx, conn, err := s.workerRepository.DatabasePG.StartTx(ctx)
@@ -255,13 +258,13 @@ func (s *WorkerService) AddCart(ctx context.Context,
 // About get cart and cart itens
 func (s * WorkerService) GetCart(ctx context.Context, 
 								 cart *model.Cart) (*model.Cart, error){
-	// trace
-	ctx, span := tracerProvider.SpanCtx(ctx, "service.GetCart")
-	defer span.End()
-
 	s.logger.Info().
 			Ctx(ctx).
 			Str("func","GetCart").Send()
+
+	// trace
+	ctx, span := tracerProvider.SpanCtx(ctx, "service.GetCart")
+	defer span.End()
 
 	// Call a service
 	resCart, err := s.workerRepository.GetCart(ctx, cart)
@@ -312,12 +315,12 @@ func (s * WorkerService) GetCart(ctx context.Context,
 // About update cart
 func (s * WorkerService) UpdateCart(ctx context.Context, 
 									cart *model.Cart) (*model.Cart, error){
-	// trace
-	ctx, span := tracerProvider.SpanCtx(ctx, "service.UpdateCart")
-
 	s.logger.Info().
 			Ctx(ctx).
 			Str("func","UpdateCart").Send()
+
+	// trace
+	ctx, span := tracerProvider.SpanCtx(ctx, "service.UpdateCart")
 
 	// prepare database
 	tx, conn, err := s.workerRepository.DatabasePG.StartTx(ctx)
@@ -365,12 +368,12 @@ func (s * WorkerService) UpdateCart(ctx context.Context,
 // About update cart
 func (s * WorkerService) UpdateCartItem(ctx context.Context, 
 										cartItem *model.CartItem) (*model.CartItem, error){
-	// trace
-	ctx, span := tracerProvider.SpanCtx(ctx, "service.UpdateCartItem")
-
 	s.logger.Info().
 			Ctx(ctx).
 			Str("func","UpdateCartItem").Send()
+			
+	// trace
+	ctx, span := tracerProvider.SpanCtx(ctx, "service.UpdateCartItem")
 
 	// prepare database
 	tx, conn, err := s.workerRepository.DatabasePG.StartTx(ctx)

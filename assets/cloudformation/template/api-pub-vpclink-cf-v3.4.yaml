@@ -1,12 +1,12 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform:
 - AWS::Serverless-2016-10-31
-Description: Apigateway Public VPCLink2 Integration v3.3 (Same Account)- 28/11/2025
+Description: Apigateway Public VPCLink2 Integration v3.4 (Same Account)- 28/11/2025
 
 Parameters:
   Versao:
     Type: String
-    Default: 3.0
+    Default: 3.4
   Env:
     Type: String
     Default: dev
@@ -42,6 +42,10 @@ Parameters:
   AuthorizerARN:
     Type: String
     Default: arn:aws:lambda:us-east-2:908671954593:function:go-oauth-apigw-authorizer-lambda:live
+  EksDomainName:
+    Type: String
+    Description: EKS Domain name defined in ingress.yaml
+    Default: go-cart.architecturedev.caradhras.io
   EdgeCertificateArn:
     Type: String
     Default: arn:aws:acm:us-east-1:908671954593:certificate/6dfea057-7ca7-41b9-95a0-b63aaa6640a2 
@@ -54,13 +58,13 @@ Parameters:
     Default: arn:aws:wafv2:us-east-2:908671954593:regional/webacl/FMManagedWebACLV2-acl-basic-1663942040591/0c9a45b3-1c87-4cd9-86a9-e50fb1914e53
   Application:
     Type: String
-    Default: go-cart
+    Default: api-go-cart
   Owner:
     Type: String
     Default: architecture
   Service:
     Type: String
-    Default: go-cart
+    Default: api-go-cart
   Squad:
     Type: String
     Default: architecture
@@ -115,10 +119,10 @@ Resources:
       DefinitionBody:
         swagger: '2.0'
         info:
-          title: go-cart
+          title: api-go-cart
         tags:
-        - name: go-cart
-          description: go-cart
+        - name: api-go-cart
+          description: api-go-cart
         schemes:
         - https
         paths:
@@ -255,7 +259,7 @@ Resources:
             responseTemplates:
               application/json: '{"error": { "id": "$context.requestId", "description":
                 "Too many requests", "code": "429"}}'
-      Description: API Pulic Lambda Integration
+      Description: !Sub "Api ${ApiPublicName} service"
       DisableExecuteApiEndpoint: true
       EndpointConfiguration:
         Type: EDGE
