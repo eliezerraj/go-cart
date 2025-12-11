@@ -113,13 +113,13 @@ func (w* WorkerRepository) AddCartItem(ctx context.Context,
 										tx pgx.Tx, 
 										cart *model.Cart,
 										cartItem *model.CartItem) (*model.CartItem, error){
-	// trace
-	ctx, span := tracerProvider.SpanCtx(ctx, "database.AddCartItem")
-	defer span.End()
-
 	w.logger.Info().
 			Ctx(ctx).
 			Str("func","AddCartItem").Send()
+
+	// trace
+	ctx, span := tracerProvider.SpanCtx(ctx, "database.AddCartItem")
+	defer span.End()
 
 	conn, err := w.DatabasePG.Acquire(ctx)
 	if err != nil {
@@ -169,13 +169,13 @@ func (w* WorkerRepository) AddCartItem(ctx context.Context,
 // About get a cart_item
 func (w *WorkerRepository) GetCart(ctx context.Context,
 									cart *model.Cart) (*model.Cart, error) {
-	// trace
-	ctx, span := tracerProvider.SpanCtx(ctx, "database.GetCart")
-	defer span.End()
-
 	w.logger.Info().
 			Ctx(ctx).
 			Str("func","GetCart").Send()
+
+	// trace
+	ctx, span := tracerProvider.SpanCtx(ctx, "database.GetCart")
+	defer span.End()
 
 	// db connection
 	conn, err := w.DatabasePG.Acquire(ctx)
@@ -289,14 +289,13 @@ func (w *WorkerRepository) GetCart(ctx context.Context,
 func (w *WorkerRepository) UpdateCart(ctx context.Context, 
 									  tx pgx.Tx, 
 									  cart *model.Cart) (int64, error){
-	
-	// trace and log
-	ctx, span := tracerProvider.SpanCtx(ctx, "database.UpdateCart")
-	defer span.End()
-
 	w.logger.Info().
 			Ctx(ctx).
 			Str("func","UpdateCart").Send()
+
+	// trace and log
+	ctx, span := tracerProvider.SpanCtx(ctx, "database.UpdateCart")
+	defer span.End()
 
 	conn, err := w.DatabasePG.Acquire(ctx)
 	if err != nil {
@@ -333,13 +332,14 @@ func (w *WorkerRepository) UpdateCart(ctx context.Context,
 // About get a cart_item
 func (w *WorkerRepository) GetCartItem(ctx context.Context,
 									   cartItem *model.CartItem) (*model.CartItem, error) {
-	// trace
-	ctx, span := tracerProvider.SpanCtx(ctx, "database.GetCartItem")
-	defer span.End()
 
 	w.logger.Info().
 			Ctx(ctx).
 			Str("func","GetCartItem").Send()
+
+	// trace
+	ctx, span := tracerProvider.SpanCtx(ctx, "database.GetCartItem")
+	defer span.End()
 
 	// db connection
 	conn, err := w.DatabasePG.Acquire(ctx)
@@ -423,14 +423,13 @@ func (w *WorkerRepository) GetCartItem(ctx context.Context,
 func (w *WorkerRepository) UpdateCartItem(ctx context.Context, 
 									  	  tx pgx.Tx, 
 									  	  cartItem *model.CartItem) (int64, error){
-	
-		// trace
-	ctx, span := tracerProvider.SpanCtx(ctx, "database.UpdateCartItem")
-	defer span.End()
-
 	w.logger.Info().
 			Ctx(ctx).
 			Str("func","UpdateCartItem").Send()
+	
+	// trace
+	ctx, span := tracerProvider.SpanCtx(ctx, "database.UpdateCartItem")
+	defer span.End()
 
 	conn, err := w.DatabasePG.Acquire(ctx)
 	if err != nil {

@@ -122,14 +122,14 @@ func (h *HttpRouters) Info(rw http.ResponseWriter, req *http.Request) {
 										time.Duration(h.appServer.Server.CtxTimeout) * time.Second)
     defer cancel()
 
-	// trace	
-	ctx, span := tracerProvider.SpanCtx(ctx, "adapter.http.Info")
-	defer span.End()
-
 	// log with context
 	h.logger.Info().
 			Ctx(ctx).
 			Str("func","Info").Send()
+
+	// trace	
+	ctx, span := tracerProvider.SpanCtx(ctx, "adapter.http.Info")
+	defer span.End()
 
 	json.NewEncoder(rw).Encode(h.appServer)
 }
@@ -140,14 +140,14 @@ func (h *HttpRouters) AddCart(rw http.ResponseWriter, req *http.Request) error {
 	ctx, cancel := context.WithTimeout(req.Context(), time.Duration(h.appServer.Server.CtxTimeout) * time.Second)
     defer cancel()
 
-	// trace and log	
-	ctx, span := tracerProvider.SpanCtx(ctx, "adapter.http.AddCart")
-	defer span.End()
-	
 	h.logger.Info().
 			Ctx(ctx).
 			Str("func","AddCart").Send()
 
+	// trace and log	
+	ctx, span := tracerProvider.SpanCtx(ctx, "adapter.http.AddCart")
+	defer span.End()
+	
 	// decode payload			
 	cart := model.Cart{}
 	err := json.NewDecoder(req.Body).Decode(&cart)
@@ -173,14 +173,14 @@ func (h *HttpRouters) GetCart(rw http.ResponseWriter, req *http.Request) error {
 	ctx, cancel := context.WithTimeout(req.Context(), time.Duration(h.appServer.Server.CtxTimeout) * time.Second)
     defer cancel()
 
-	// trace	
-	ctx, span := tracerProvider.SpanCtx(ctx, "adapter.http.GetCart")
-	defer span.End()
-
 	// log with context
 	h.logger.Info().
 			Ctx(ctx).
 			Str("func","GetCart").Send()
+
+	// trace	
+	ctx, span := tracerProvider.SpanCtx(ctx, "adapter.http.GetCart")
+	defer span.End()
 
 	vars := mux.Vars(req)
 	varID := vars["id"]
@@ -208,14 +208,14 @@ func (h *HttpRouters) UpdateCart(rw http.ResponseWriter, req *http.Request) erro
 	ctx, cancel := context.WithTimeout(req.Context(), time.Duration(h.appServer.Server.CtxTimeout) * time.Second)
     defer cancel()
 
-	// trace	
-	ctx, span := tracerProvider.SpanCtx(ctx, "adapter.http.UpdateCart")
-	defer span.End()
-	
 	h.logger.Info().
 			Ctx(ctx).
 			Str("func","UpdateCart").Send()
 
+	// trace	
+	ctx, span := tracerProvider.SpanCtx(ctx, "adapter.http.UpdateCart")
+	defer span.End()
+	
 	// decode payload	
 	cart := model.Cart{}
 	err := json.NewDecoder(req.Body).Decode(&cart)
@@ -253,14 +253,14 @@ func (h *HttpRouters) UpdateCartItem(rw http.ResponseWriter, req *http.Request) 
 	ctx, cancel := context.WithTimeout(req.Context(), time.Duration(h.appServer.Server.CtxTimeout) * time.Second)
     defer cancel()
 
-	// trace	
-	ctx, span := tracerProvider.SpanCtx(ctx, "adapter.http.UpdateCartItem")
-	defer span.End()
-	
 	h.logger.Info().
 			Ctx(ctx).
 			Str("func","UpdateCartItem").Send()
 
+	// trace	
+	ctx, span := tracerProvider.SpanCtx(ctx, "adapter.http.UpdateCartItem")
+	defer span.End()
+	
 	// decode payload	
 	cartItem := model.CartItem{}
 	err := json.NewDecoder(req.Body).Decode(&cartItem)
