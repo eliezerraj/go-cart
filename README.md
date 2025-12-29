@@ -1,8 +1,89 @@
-# go-cart
+## go-cart
 
-    workload for POC purpose
+   This is workload for POC purpose such as load stress test, gitaction, etc.
 
-# tables
+   The main purpose is create an cart and cart item (with products selected).
+
+## Integration
+
+   This is workload requires go-inventory.
+
+   The integrations are made via http api request.
+
+## Enviroment variables
+
+   To run in local machine for local tests creat a .env in /cmd folder
+
+    VERSION=1.0
+    ACCOUNT=aws:localhost
+    APP_NAME=go-cart.localhost
+    PORT=7001
+    ENV=dev
+
+    DB_HOST= 127.0.0.1 
+    DB_PORT=5432
+    DB_NAME=postgres
+    DB_MAX_CONNECTION=30
+    CTX_TIMEOUT=10
+
+    LOG_LEVEL=info #info, error, warning
+    OTEL_EXPORTER_OTLP_ENDPOINT = localhost:4317
+
+    OTEL_METRICS=true
+    OTEL_STDOUT_TRACER=false
+    OTEL_TRACES=true
+
+    OTEL_LOGS=true
+    OTEL_STDOUT_LOG_GROUP=true
+    LOG_GROUP=/mnt/c/Eliezer/log/go-cart.log
+
+    NAME_SERVICE_00=go-inventory
+    URL_SERVICE_00=http://localhost:7000
+    HOST_SERVICE_00=go-inventory
+    CLIENT_HTTP_TIMEOUT_00=5
+
+## Enpoints
+
+    curl --location 'http://localhost:7001/info'
+    curl --location 'http://localhost:7001/info'
+    curl --location 'http://localhost:7001/cart/5'
+
+    curl --location 'http://localhost:7001/cart' \
+    --header 'Content-Type: application/json' \
+    --data '{
+        "user_id": "eliezer",
+        "cart_item": [ 
+            {   "product": {
+                    "sku": "dental-01"
+                },
+                "currency": "BRL",
+                "quantity": 2,
+                "price": 2.5
+            },
+            {
+                "product": {
+                    "sku": "floss-01"
+                },
+                "currency": "BRL",
+                "quantity": 3,
+                "price": 3.6
+            }
+        ]
+    }'
+
+    curl --location --request PUT 'http://localhost:7001/cart/9' \
+    --header 'Content-Type: application/json' \
+    --data '{
+        "status": "TESTE-01"
+    }'
+
+    curl --location --request PUT 'http://localhost:7001/cartItem/9' \
+    --header 'Content-Type: application/json' \
+    --data '{
+        "status": "TESTE:PRODUCT"
+    }'
+
+## Tables
 
     CREATE TABLE public.cart (
         id 			BIGSERIAL 	NOT NULL,

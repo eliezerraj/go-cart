@@ -152,7 +152,7 @@ func (h *HttpRouters) AddCart(rw http.ResponseWriter, req *http.Request) error {
 	cart := model.Cart{}
 	err := json.NewDecoder(req.Body).Decode(&cart)
     if err != nil {
-		trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
+		trace_id := fmt.Sprintf("%v",ctx.Value("request-id"))
 		return h.ErrorHandler(trace_id, erro.ErrBadRequest)
     }
 	defer req.Body.Close()
@@ -160,7 +160,7 @@ func (h *HttpRouters) AddCart(rw http.ResponseWriter, req *http.Request) error {
 	// call service
 	res, err := h.workerService.AddCart(ctx, &cart)
 	if err != nil {
-		trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
+		trace_id := fmt.Sprintf("%v",ctx.Value("request-id"))
 		return h.ErrorHandler(trace_id, err)
 	}
 	
@@ -187,7 +187,7 @@ func (h *HttpRouters) GetCart(rw http.ResponseWriter, req *http.Request) error {
 
 	varIDint, err := strconv.Atoi(varID)
     if err != nil {
-		trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
+		trace_id := fmt.Sprintf("%v",ctx.Value("request-id"))
 		return h.ErrorHandler(trace_id, erro.ErrBadRequest)
     }
 
@@ -195,7 +195,7 @@ func (h *HttpRouters) GetCart(rw http.ResponseWriter, req *http.Request) error {
 
 	res, err := h.workerService.GetCart(ctx, &cart)
 	if err != nil {
-		trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
+		trace_id := fmt.Sprintf("%v",ctx.Value("request-id"))
 		return h.ErrorHandler(trace_id, err)
 	}
 	
@@ -220,7 +220,7 @@ func (h *HttpRouters) UpdateCart(rw http.ResponseWriter, req *http.Request) erro
 	cart := model.Cart{}
 	err := json.NewDecoder(req.Body).Decode(&cart)
     if err != nil {
-		trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
+		trace_id := fmt.Sprintf("%v",ctx.Value("request-id"))
 		return h.ErrorHandler(trace_id, erro.ErrBadRequest)
     }
 	defer req.Body.Close()
@@ -231,7 +231,7 @@ func (h *HttpRouters) UpdateCart(rw http.ResponseWriter, req *http.Request) erro
 
 	varIDint, err := strconv.Atoi(varID)
     if err != nil {
-		trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
+		trace_id := fmt.Sprintf("%v",ctx.Value("request-id"))
 		return h.ErrorHandler(trace_id, erro.ErrBadRequest)
     }
 
@@ -240,7 +240,7 @@ func (h *HttpRouters) UpdateCart(rw http.ResponseWriter, req *http.Request) erro
 	// call service	
 	res, err := h.workerService.UpdateCart(ctx, &cart)
 	if err != nil {
-		trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
+		trace_id := fmt.Sprintf("%v",ctx.Value("request-id"))
 		return h.ErrorHandler(trace_id, err)
 	}
 	
@@ -265,7 +265,7 @@ func (h *HttpRouters) UpdateCartItem(rw http.ResponseWriter, req *http.Request) 
 	cartItem := model.CartItem{}
 	err := json.NewDecoder(req.Body).Decode(&cartItem)
     if err != nil {
-		trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
+		trace_id := fmt.Sprintf("%v",ctx.Value("request-id"))
 		return h.ErrorHandler(trace_id, erro.ErrBadRequest)
     }
 	defer req.Body.Close()
@@ -276,7 +276,7 @@ func (h *HttpRouters) UpdateCartItem(rw http.ResponseWriter, req *http.Request) 
 
 	varIDint, err := strconv.Atoi(varID)
     if err != nil {
-		trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
+		trace_id := fmt.Sprintf("%v",ctx.Value("request-id"))
 		return h.ErrorHandler(trace_id, erro.ErrBadRequest)
     }
 
@@ -285,7 +285,7 @@ func (h *HttpRouters) UpdateCartItem(rw http.ResponseWriter, req *http.Request) 
 	// call service	
 	res, err := h.workerService.UpdateCartItem(ctx, &cartItem)
 	if err != nil {
-		trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
+		trace_id := fmt.Sprintf("%v",ctx.Value("request-id"))
 		return h.ErrorHandler(trace_id, err)
 	}
 	

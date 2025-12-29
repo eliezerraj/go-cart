@@ -1,0 +1,53 @@
+apiVersion: opentelemetry.io/v1alpha1
+kind: OpenTelemetryCollector
+metadata:
+  name: arch-eks-002-otel
+spec:
+  mode: deployment 
+  #serviceAccount: adot-collector #Unable this line whenever you use the pod-identidy
+  
+  config: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    
+    exporters:
+      otlp:
+        endpoint: "grafana.architecture.caradhras.io:4317" 
+        tls:
+          insecure: true
+      otlp/tempo-all:
+        endpoint: "http://grafana.architecture.caradhras.io:4318"
+        tls:
+          insecure: true
+      prometheusremotewrite:
+        endpoint: "grafana.architecture.caradhras.io:8889/api/v1/write"
+      awsxray: {}
+
+    processors:
+      resource:
+        attributes:
+          - key: k8s.cluster.name
+            value: local-go-app
+            action: insert
+          - key: otel.resource.deployment.environment
+            value: dev-compose
+            action: insert
+      batch:
+        send_batch_size: 1000
+        timeout: 10s
+
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [otlp, awsxray]
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [prometheusremotewrite]
