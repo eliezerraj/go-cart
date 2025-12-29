@@ -202,7 +202,7 @@ func (s *WorkerService) AddCart(ctx context.Context,
 	cart.ID = res_cart.ID
 
 	// prepare headers http for calling services
-	trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
+	trace_id := fmt.Sprintf("%v",ctx.Value("request-id"))
 
 	headers := map[string]string{
 		"Content-Type":  "application/json;charset=UTF-8",
@@ -273,7 +273,7 @@ func (s * WorkerService) GetCart(ctx context.Context,
 	}
 
 	// prepare headers http for calling services
-	trace_id := fmt.Sprintf("%v",ctx.Value("trace-request-id"))
+	trace_id := fmt.Sprintf("%v",ctx.Value("request-id"))
 	headers := map[string]string{
 		"Content-Type":  "application/json;charset=UTF-8",
 		"X-Request-Id": trace_id,
