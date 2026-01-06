@@ -191,7 +191,7 @@ func (s *WorkerService) AddCart(ctx context.Context,
 	// prepare data
 	cart.CreatedAt = time.Now()
 	if cart.Status == "" {	
-		cart.Status = "CART:POSTED-DEFAULT"
+		cart.Status = "CART:PENDING"
 	}
 	
 	// Create cart
@@ -239,7 +239,7 @@ func (s *WorkerService) AddCart(ctx context.Context,
 
 		// prepare data
 		cartItem.CreatedAt = cart.CreatedAt
-		cartItem.Status = "CART_ITEM:POSTED"
+		cartItem.Status = "CART_ITEM:PENDING"
 		cartItem.Product = product
 
     	res_cart_item, err := s.workerRepository.AddCartItem(ctx,
