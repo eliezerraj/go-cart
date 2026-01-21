@@ -12,6 +12,9 @@ spec:
     - name: alb-arch-eks-002-gateway
       namespace: test-a
       sectionName: http-listener
+    - name: alb-arch-eks-002-gateway
+      namespace: test-a
+      sectionName: https-listener
   rules:
     - matches:
         - path:

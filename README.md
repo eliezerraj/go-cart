@@ -4,11 +4,54 @@
 
    The main purpose is create an cart and cart item (with products selected).
 
-## Integration
+## Sequence Diagram
 
-   This is workload requires go-inventory.
+![alt text](cart.png)
 
-   The integrations are made via http api request.
+![alt text](cart_2.png)
+    
+    title cart
+
+    participant user
+    participant cart
+    participant inventory
+
+    entryspacing 1.3
+        alt AddCart
+            user->cart:POST /cart
+            postData
+    cart->cart:add cart\ncart.Status = "CART:PENDING"
+        loop over cartItem
+        cart->inventory:GET /product/{id}
+        cart<--inventory:http 200 (JSON)\nqueryData
+        cart->cart:add cartItem\ncartItem.Status = "CART_ITEM:PENDING"
+        end
+            user<--cart:http 200 (JSON)\npostData
+            queryData
+        end
+        alt update cart
+        user->cart:PUT /cart/{id}
+    cart->cart:get\ncart
+    cart->cart:update\ncart
+    cartItem
+        user<--cart:http 200 (JSON)\nputData
+        end
+        alt update cartItem
+        user->cart:PUT /cartItem/{id}
+    cart->cart:get\ncartItem
+    cart->cart:update\ncartItem
+        user<--cart:http 200 (JSON)\nputData
+        end
+    alt GetCart
+    user->cart:GET /cart/{id}
+    loop over cartItem
+    cart->inventory:GET /product/{id}
+    cart<--inventory:http 200 (JSON)\nqueryData
+    end
+    user<--cart:http 200 (JSON)\nqueryData
+    endrt:http 200 (JSON)\nputData
+        end
+
 
 ## Enviroment variables
 
@@ -44,11 +87,21 @@
 
 ## Enpoints
 
-    curl --location 'http://localhost:7001/info'
-    curl --location 'http://localhost:7001/info'
-    curl --location 'http://localhost:7001/cart/5'
+curl --location 'http://localhost:7004/health'
 
-    curl --location 'http://localhost:7001/cart' \
+curl --location 'http://localhost:7004/live'
+
+curl --location 'http://localhost:7004/header'
+
+curl --location 'http://localhost:7004/context'
+
+curl --location 'http://localhost:7004/info'
+
+curl --location 'http://localhost:7004/metrics'
+
+curl --location 'http://localhost:7001/cart/5'
+
+curl --location 'http://localhost:7001/cart' \
     --header 'Content-Type: application/json' \
     --data '{
         "user_id": "eliezer",
@@ -71,17 +124,31 @@
         ]
     }'
 
-    curl --location --request PUT 'http://localhost:7001/cart/9' \
+curl --location --request PUT 'http://localhost:7001/cart/9' \
     --header 'Content-Type: application/json' \
     --data '{
         "status": "TESTE-01"
     }'
 
-    curl --location --request PUT 'http://localhost:7001/cartItem/9' \
+curl --location --request PUT 'http://localhost:7001/cartItem/9' \
     --header 'Content-Type: application/json' \
     --data '{
         "status": "TESTE:PRODUCT"
     }'
+
+## Monitoring
+
+Logs: JSON structured logging via zerolog
+
+Metrics: Available through endpoint /metrics via otel/sdk/metric
+
+Trace: The x-request-id is extract from header and is ingest into context, in order the x-request-id do not exist a new one is generated (uuid)
+
+Errors: Structured error handling with custom error types
+
+## Security
+
+Security Headers: Is implement via go-core midleware
 
 ## Tables
 
