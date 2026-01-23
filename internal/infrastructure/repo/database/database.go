@@ -1,30 +1,32 @@
 package database
 
 import (
-		"context"
-		"errors"
-		"database/sql"
+	"fmt"
+	"time"
+	"context"
+	"database/sql"
 
-		"github.com/rs/zerolog"
-		"github.com/jackc/pgx/v5"
+	"github.com/rs/zerolog"
+	"github.com/jackc/pgx/v5"
 
-		"github.com/go-cart/shared/erro"
-		"github.com/go-cart/internal/domain/model"
+	"github.com/go-cart/shared/erro"
+	"github.com/go-cart/internal/domain/model"
+	"go.opentelemetry.io/otel/trace"
 
-		go_core_otel_trace "github.com/eliezerraj/go-core/v2/otel/trace"
-		go_core_db_pg "github.com/eliezerraj/go-core/v2/database/postgre"
+	go_core_otel_trace "github.com/eliezerraj/go-core/v2/otel/trace"
+	go_core_db_pg "github.com/eliezerraj/go-core/v2/database/postgre"
 )
 
-var tracerProvider go_core_otel_trace.TracerProvider
-
 type WorkerRepository struct {
-	DatabasePG *go_core_db_pg.DatabasePGServer
-	logger		*zerolog.Logger
+	DatabasePG 		*go_core_db_pg.DatabasePGServer
+	logger			*zerolog.Logger
+	tracerProvider 	*go_core_otel_trace.TracerProvider
 }
 
 // Above new worker
 func NewWorkerRepository(databasePG *go_core_db_pg.DatabasePGServer,
-						appLogger *zerolog.Logger) *WorkerRepository{
+						appLogger *zerolog.Logger,
+						tracerProvider *go_core_otel_trace.TracerProvider) *WorkerRepository{
 	logger := appLogger.With().
 						Str("package", "repo.database").
 						Logger()
@@ -34,7 +36,55 @@ func NewWorkerRepository(databasePG *go_core_db_pg.DatabasePGServer,
 	return &WorkerRepository{
 		DatabasePG: databasePG,
 		logger: &logger,
+		tracerProvider: tracerProvider,
 	}
+}
+
+// Helper function to convert nullable time to pointer
+func (w *WorkerRepository) pointerTime(nt sql.NullTime) *time.Time {
+	if nt.Valid {
+		return &nt.Time
+	}
+	return nil
+}
+
+// Helper function to scan cart from rows iterator
+func (w *WorkerRepository) scanCartFromRow(rows pgx.Rows) (*model.Cart, error) {
+	cart := model.Cart{}
+	var nullUpdatedAt sql.NullTime
+	
+	err := rows.Scan(&cart.ID, 
+					&cart.UserId,
+					&cart.Status,
+					&cart.CreatedAt,
+					&nullUpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan cart from rows: %w", err)
+	}
+	
+	cart.UpdatedAt = w.pointerTime(nullUpdatedAt)
+	return &cart, nil
+}
+
+// Helper function to scan cart item from rows iterator
+func (w *WorkerRepository) scanCartItemFromRow(rows pgx.Rows) (*model.CartItem, error) {
+	cartItem := model.CartItem{}
+	var nullUpdatedAt sql.NullTime
+	
+	err := rows.Scan(&cartItem.ID,
+					&cartItem.Status, 
+					&cartItem.Quantity, 
+					&cartItem.Currency, 
+					&cartItem.Price,
+					&cartItem.Discount, 
+					&cartItem.CreatedAt,
+					&nullUpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan cart item from rows: %w", err)
+	}
+	
+	cartItem.UpdatedAt = w.pointerTime(nullUpdatedAt)
+	return &cartItem, nil
 }
 
 // Above get stats from database
@@ -63,22 +113,13 @@ func (w *WorkerRepository) Stat(ctx context.Context) (go_core_db_pg.PoolStats){
 func (w* WorkerRepository) AddCart(ctx context.Context, 
 									tx pgx.Tx, 
 									cart *model.Cart) (*model.Cart, error){
-	// trace
-	ctx, span := tracerProvider.SpanCtx(ctx, "database.AddCart")
-	defer span.End()
-
 	w.logger.Info().
 			Ctx(ctx).
 			Str("func","AddCart").Send()
-
-	conn, err := w.DatabasePG.Acquire(ctx)
-	if err != nil {
-		w.logger.Error().
-				Ctx(ctx).
-				Err(err).Send()
-		return nil, errors.New(err.Error())
-	}
-	defer w.DatabasePG.Release(conn)
+	
+	// trace
+	ctx, span := w.tracerProvider.SpanCtx(ctx, "database.AddCart", trace.SpanKindInternal)
+	defer span.End()
 
 	//Prepare
 	var id int
@@ -99,7 +140,7 @@ func (w* WorkerRepository) AddCart(ctx context.Context,
 		w.logger.Error().
 				Ctx(ctx).
 				Err(err).Send()
-		return nil, errors.New(err.Error())
+		return nil, fmt.Errorf("failed to scan cart ID: %w", err)
 	}
 
 	// Set PK
@@ -118,17 +159,8 @@ func (w* WorkerRepository) AddCartItem(ctx context.Context,
 			Str("func","AddCartItem").Send()
 
 	// trace
-	ctx, span := tracerProvider.SpanCtx(ctx, "database.AddCartItem")
+	ctx, span := w.tracerProvider.SpanCtx(ctx, "database.AddCartItem", trace.SpanKindInternal)
 	defer span.End()
-
-	conn, err := w.DatabasePG.Acquire(ctx)
-	if err != nil {
-		w.logger.Error().
-				Ctx(ctx).
-				Err(err).Send()
-		return nil, errors.New(err.Error())
-	}
-	defer w.DatabasePG.Release(conn)
 
 	//Prepare
 	var id int
@@ -157,7 +189,7 @@ func (w* WorkerRepository) AddCartItem(ctx context.Context,
 		w.logger.Error().
 				Ctx(ctx).
 				Err(err).Send()
-		return nil, errors.New(err.Error())
+		return nil, fmt.Errorf("failed to scan cart item ID: %w", err)
 	}
 
 	// Set PK
@@ -168,22 +200,21 @@ func (w* WorkerRepository) AddCartItem(ctx context.Context,
 
 // About get a cart_item
 func (w *WorkerRepository) GetCart(ctx context.Context,
-									cart *model.Cart) (*model.Cart, error) {
+								   cart *model.Cart) (*model.Cart, error) {
 	w.logger.Info().
 			Ctx(ctx).
 			Str("func","GetCart").Send()
 
 	// trace
-	ctx, span := tracerProvider.SpanCtx(ctx, "database.GetCart")
+	ctx, span := w.tracerProvider.SpanCtx(ctx, "database.GetCart", trace.SpanKindInternal)
 	defer span.End()
-
 	// db connection
 	conn, err := w.DatabasePG.Acquire(ctx)
 	if err != nil {
 		w.logger.Error().
 				Ctx(ctx).
 				Err(err).Send()
-		return nil, errors.New(err.Error())
+		return nil, fmt.Errorf("failed to acquire database connection: %w", err)
 	}
 	defer w.DatabasePG.Release(conn)
 
@@ -214,15 +245,15 @@ func (w *WorkerRepository) GetCart(ctx context.Context,
 		w.logger.Error().
 				Ctx(ctx).
 				Err(err).Send()
-		return nil, errors.New(err.Error())
+		return nil, fmt.Errorf("failed to query cart: %w", err)
 	}
 	defer rows.Close()
 	
     if err := rows.Err(); err != nil {
 		w.logger.Error().
 				Ctx(ctx).
-				Err(err).Msg("fatal error closing rows")
-        return nil, errors.New(err.Error())
+				Err(err).Msg("error iterating cart rows")
+        return nil, fmt.Errorf("error iterating cart rows: %w", err)
     }
 
 	resCart := model.Cart{}
@@ -239,9 +270,7 @@ func (w *WorkerRepository) GetCart(ctx context.Context,
 							&resCart.Status,
 							&resCart.CreatedAt,
 							&nullCartUpdatedAt,
-
 							&resProduct.ID, 
-
 							&resCartItem.ID,
 							&resCartItem.Status, 
 							&resCartItem.Quantity, 
@@ -255,20 +284,11 @@ func (w *WorkerRepository) GetCart(ctx context.Context,
 			w.logger.Error().
 					Ctx(ctx).
 					Err(err).Send()
-			return nil, errors.New(err.Error())
+			return nil, fmt.Errorf("failed to scan cart row: %w", err)
         }
 
-		if nullCartUpdatedAt.Valid {
-        	resCart.UpdatedAt = &nullCartUpdatedAt.Time
-    	} else {
-			resCart.UpdatedAt = nil
-		}
-		if nullCartItemUpdatedAt.Valid {
-        	resCartItem.UpdatedAt = &nullCartItemUpdatedAt.Time
-    	} else {
-			resCartItem.UpdatedAt = nil
-		}
-
+		resCart.UpdatedAt = w.pointerTime(nullCartUpdatedAt)
+		resCartItem.UpdatedAt = w.pointerTime(nullCartItemUpdatedAt)
 		resCartItem.Product = resProduct
 		listCartItem = append(listCartItem, resCartItem)
 
@@ -278,7 +298,7 @@ func (w *WorkerRepository) GetCart(ctx context.Context,
 	if resCart == (model.Cart{}) {
 		w.logger.Warn().
 				Ctx(ctx).
-				Err(err).Send()
+				Msg("cart not found")
 		return nil, erro.ErrNotFound
 	}
 		
@@ -294,17 +314,8 @@ func (w *WorkerRepository) UpdateCart(ctx context.Context,
 			Str("func","UpdateCart").Send()
 
 	// trace and log
-	ctx, span := tracerProvider.SpanCtx(ctx, "database.UpdateCart")
+	ctx, span := w.tracerProvider.SpanCtx(ctx, "database.UpdateCart", trace.SpanKindInternal)
 	defer span.End()
-
-	conn, err := w.DatabasePG.Acquire(ctx)
-	if err != nil {
-		w.logger.Error().
-				Ctx(ctx).
-				Err(err).Send()
-		return 0, errors.New(err.Error())
-	}
-	defer w.DatabasePG.Release(conn)
 
 	// Query Execute
 	query := `UPDATE cart
@@ -323,7 +334,7 @@ func (w *WorkerRepository) UpdateCart(ctx context.Context,
 				Ctx(ctx).
 				Str("func","UpdateCart").
 				Err(err).Send()
-		return 0, errors.New(err.Error())
+		return 0, fmt.Errorf("failed to update cart: %w", err)
 	}
 
 	return row.RowsAffected(), nil
@@ -338,7 +349,7 @@ func (w *WorkerRepository) GetCartItem(ctx context.Context,
 			Str("func","GetCartItem").Send()
 
 	// trace
-	ctx, span := tracerProvider.SpanCtx(ctx, "database.GetCartItem")
+	ctx, span := w.tracerProvider.SpanCtx(ctx, "database.GetCartItem", trace.SpanKindInternal)
 	defer span.End()
 
 	// db connection
@@ -347,7 +358,7 @@ func (w *WorkerRepository) GetCartItem(ctx context.Context,
 		w.logger.Error().
 				Ctx(ctx).
 				Err(err).Send()
-		return nil, errors.New(err.Error())
+		return nil, fmt.Errorf("failed to acquire database connection: %w", err)
 	}
 	defer w.DatabasePG.Release(conn)
 
@@ -370,54 +381,38 @@ func (w *WorkerRepository) GetCartItem(ctx context.Context,
 		w.logger.Error().
 				Ctx(ctx).
 				Err(err).Send()
-		return nil, errors.New(err.Error())
+		return nil, fmt.Errorf("failed to query cart item: %w", err)
 	}
 	defer rows.Close()
 	
     if err := rows.Err(); err != nil {
 		w.logger.Error().
 				Ctx(ctx).
-				Err(err).Msg("fatal error closing rows")
-        return nil, errors.New(err.Error())
+				Err(err).Msg("error iterating cart item rows")
+        return nil, fmt.Errorf("error iterating cart item rows: %w", err)
     }
 
-	resCartItem := model.CartItem{}
-	var nullCartItemUpdatedAt sql.NullTime
-
+	var resCartItem *model.CartItem
 	for rows.Next() {
-		err := rows.Scan(	&resCartItem.ID,
-							&resCartItem.Status, 
-							&resCartItem.Quantity, 
-							&resCartItem.Currency, 							
-							&resCartItem.Price,
-							&resCartItem.Discount, 
-							&resCartItem.CreatedAt,
-							&nullCartItemUpdatedAt,
-						)
+		item, err := w.scanCartItemFromRow(rows)
 		if err != nil {
 			w.logger.Error().
 					Ctx(ctx).
 					Err(err).Send()
-			return nil, errors.New(err.Error())
+			return nil, err
         }
-
-		if nullCartItemUpdatedAt.Valid {
-        	resCartItem.UpdatedAt = &nullCartItemUpdatedAt.Time
-    	} else {
-			resCartItem.UpdatedAt = nil
-		}
+		resCartItem = item
 	}
 
-	if resCartItem == (model.CartItem{}) {
+	if resCartItem == nil {
 		w.logger.Warn().
 				Ctx(ctx).
-				Err(err).Send()
+				Msg("cart item not found")
 		return nil, erro.ErrNotFound
 	}
 		
-	return &resCartItem, nil
+	return resCartItem, nil
 }
-
 
 // About update cart-item 
 func (w *WorkerRepository) UpdateCartItem(ctx context.Context, 
@@ -428,17 +423,8 @@ func (w *WorkerRepository) UpdateCartItem(ctx context.Context,
 			Str("func","UpdateCartItem").Send()
 	
 	// trace
-	ctx, span := tracerProvider.SpanCtx(ctx, "database.UpdateCartItem")
+	ctx, span := w.tracerProvider.SpanCtx(ctx, "database.UpdateCartItem", trace.SpanKindInternal)
 	defer span.End()
-
-	conn, err := w.DatabasePG.Acquire(ctx)
-	if err != nil {
-		w.logger.Error().
-				Ctx(ctx).
-				Err(err).Send()
-		return 0, errors.New(err.Error())
-	}
-	defer w.DatabasePG.Release(conn)
 
 	// Query Execute
 	query := `UPDATE cart_item
@@ -455,9 +441,9 @@ func (w *WorkerRepository) UpdateCartItem(ctx context.Context,
 	if err != nil {
 		w.logger.Error().
 				Ctx(ctx).
-				Str("func","UpdateCart").
+				Str("func","UpdateCartItem").
 				Err(err).Send()
-		return 0, errors.New(err.Error())
+		return 0, fmt.Errorf("failed to update cart item: %w", err)
 	}
 
 	return row.RowsAffected(), nil
