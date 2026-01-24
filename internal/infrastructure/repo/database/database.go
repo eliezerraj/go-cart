@@ -59,7 +59,7 @@ func (w *WorkerRepository) scanCartFromRow(rows pgx.Rows) (*model.Cart, error) {
 					&cart.CreatedAt,
 					&nullUpdatedAt)
 	if err != nil {
-		return nil, fmt.Errorf("failed to scan cart from rows: %w", err)
+		return nil, fmt.Errorf("FAILED to scan cart from rows: %w", err)
 	}
 	
 	cart.UpdatedAt = w.pointerTime(nullUpdatedAt)
@@ -80,7 +80,7 @@ func (w *WorkerRepository) scanCartItemFromRow(rows pgx.Rows) (*model.CartItem, 
 					&cartItem.CreatedAt,
 					&nullUpdatedAt)
 	if err != nil {
-		return nil, fmt.Errorf("failed to scan cart item from rows: %w", err)
+		return nil, fmt.Errorf("FAILED to scan cart item from rows: %w", err)
 	}
 	
 	cartItem.UpdatedAt = w.pointerTime(nullUpdatedAt)
@@ -140,7 +140,7 @@ func (w* WorkerRepository) AddCart(ctx context.Context,
 		w.logger.Error().
 				Ctx(ctx).
 				Err(err).Send()
-		return nil, fmt.Errorf("failed to scan cart ID: %w", err)
+		return nil, fmt.Errorf("FAILED to scan cart ID: %w", err)
 	}
 
 	// Set PK
@@ -189,7 +189,7 @@ func (w* WorkerRepository) AddCartItem(ctx context.Context,
 		w.logger.Error().
 				Ctx(ctx).
 				Err(err).Send()
-		return nil, fmt.Errorf("failed to scan cart item ID: %w", err)
+		return nil, fmt.Errorf("FAILED to scan cart item ID: %w", err)
 	}
 
 	// Set PK
@@ -208,13 +208,14 @@ func (w *WorkerRepository) GetCart(ctx context.Context,
 	// trace
 	ctx, span := w.tracerProvider.SpanCtx(ctx, "database.GetCart", trace.SpanKindInternal)
 	defer span.End()
+	
 	// db connection
 	conn, err := w.DatabasePG.Acquire(ctx)
 	if err != nil {
 		w.logger.Error().
 				Ctx(ctx).
 				Err(err).Send()
-		return nil, fmt.Errorf("failed to acquire database connection: %w", err)
+		return nil, fmt.Errorf("FAILED to acquire database connection: %w", err)
 	}
 	defer w.DatabasePG.Release(conn)
 
@@ -245,7 +246,7 @@ func (w *WorkerRepository) GetCart(ctx context.Context,
 		w.logger.Error().
 				Ctx(ctx).
 				Err(err).Send()
-		return nil, fmt.Errorf("failed to query cart: %w", err)
+		return nil, fmt.Errorf("FAILED to query cart: %w", err)
 	}
 	defer rows.Close()
 	
@@ -284,7 +285,7 @@ func (w *WorkerRepository) GetCart(ctx context.Context,
 			w.logger.Error().
 					Ctx(ctx).
 					Err(err).Send()
-			return nil, fmt.Errorf("failed to scan cart row: %w", err)
+			return nil, fmt.Errorf("FAILED to scan cart row: %w", err)
         }
 
 		resCart.UpdatedAt = w.pointerTime(nullCartUpdatedAt)
@@ -334,7 +335,7 @@ func (w *WorkerRepository) UpdateCart(ctx context.Context,
 				Ctx(ctx).
 				Str("func","UpdateCart").
 				Err(err).Send()
-		return 0, fmt.Errorf("failed to update cart: %w", err)
+		return 0, fmt.Errorf("FAILED to update cart: %w", err)
 	}
 
 	return row.RowsAffected(), nil
@@ -358,7 +359,7 @@ func (w *WorkerRepository) GetCartItem(ctx context.Context,
 		w.logger.Error().
 				Ctx(ctx).
 				Err(err).Send()
-		return nil, fmt.Errorf("failed to acquire database connection: %w", err)
+		return nil, fmt.Errorf("FAILED to acquire database connection: %w", err)
 	}
 	defer w.DatabasePG.Release(conn)
 
@@ -381,7 +382,7 @@ func (w *WorkerRepository) GetCartItem(ctx context.Context,
 		w.logger.Error().
 				Ctx(ctx).
 				Err(err).Send()
-		return nil, fmt.Errorf("failed to query cart item: %w", err)
+		return nil, fmt.Errorf("FAILED to query cart item: %w", err)
 	}
 	defer rows.Close()
 	
@@ -443,7 +444,7 @@ func (w *WorkerRepository) UpdateCartItem(ctx context.Context,
 				Ctx(ctx).
 				Str("func","UpdateCartItem").
 				Err(err).Send()
-		return 0, fmt.Errorf("failed to update cart item: %w", err)
+		return 0, fmt.Errorf("FAILED to update cart item: %w", err)
 	}
 
 	return row.RowsAffected(), nil

@@ -80,7 +80,7 @@ func (h *HttpAppServer) StartHttpAppServer(	ctx context.Context,
 	// Setup metrics if enabled
 	if h.appServer.Application.OtelTraces {
 		if err := h.setupMetrics(ctx); err != nil {
-			h.logger.Warn().Ctx(ctx).Err(err).Msg("Failed to setup metrics")
+			h.logger.Warn().Ctx(ctx).Err(err).Msg("FAILED to setup metrics")
 		}
 	}
 

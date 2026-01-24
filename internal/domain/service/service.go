@@ -57,7 +57,7 @@ func (s *WorkerService) doHttpCall(ctx context.Context,
 				s.logger.Error().
 						Ctx(ctx).
 						Err(err).Send()
-				return nil, fmt.Errorf("failed to marshal http response: %w", err)
+				return nil, fmt.Errorf("FAILED to marshal http response: %w", err)
 			}			
 			
 			message := model.APIError{}
@@ -65,7 +65,7 @@ func (s *WorkerService) doHttpCall(ctx context.Context,
 				s.logger.Error().
 						Ctx(ctx).
 						Err(err).Send()
-				return nil, fmt.Errorf("failed to unmarshal error response: %w", err)
+				return nil, fmt.Errorf("FAILED to unmarshal error response: %w", err)
 			}
 
 			newErr := fmt.Errorf("http call error: status code %d - message: %s", statusCode, message.Msg)
@@ -124,13 +124,13 @@ func (s *WorkerService) parseProductFromPayload(ctx context.Context, payload int
 	jsonString, err := json.Marshal(payload)
 	if err != nil {
 		s.logger.Error().Ctx(ctx).Err(err).Send()
-		return nil, fmt.Errorf("failed to marshal response payload: %w", err)
+		return nil, fmt.Errorf("FAILED to marshal response payload: %w", err)
 	}
 	
 	product := &model.Product{}
 	if err := json.Unmarshal(jsonString, product); err != nil {
 		s.logger.Error().Ctx(ctx).Err(err).Send()
-		return nil, fmt.Errorf("failed to unmarshal product: %w", err)
+		return nil, fmt.Errorf("FAILED to unmarshal product: %w", err)
 	}
 	return product, nil
 }
