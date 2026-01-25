@@ -75,6 +75,7 @@ func NewHttpRouters(appServer *model.AppServer,
 // Helper to write JSON response
 func (h *HttpRouters) writeJSON(w http.ResponseWriter, code int, data interface{}) error {
 	w.Header().Set("Content-Type", "application/json")
+
 	w.WriteHeader(code)
 
 	return json.NewEncoder(w).Encode(data)
@@ -170,7 +171,6 @@ func (h *HttpRouters) AddCart(rw http.ResponseWriter, req *http.Request) error {
 	cart := model.Cart{}
 	err := json.NewDecoder(req.Body).Decode(&cart)
 	defer req.Body.Close()
-
     if err != nil {
 		return h.ErrorHandler(h.getTraceID(ctx), erro.ErrBadRequest)
     }
@@ -180,7 +180,7 @@ func (h *HttpRouters) AddCart(rw http.ResponseWriter, req *http.Request) error {
 	if err != nil {
 		return h.ErrorHandler(h.getTraceID(ctx), err)
 	}
-	
+
 	return h.writeJSON(rw, http.StatusCreated, res)
 }
 
