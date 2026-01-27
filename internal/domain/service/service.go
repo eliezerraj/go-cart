@@ -3,7 +3,6 @@ package service
 import (
 	"fmt"
 	"time"
-	"errors"
 	"context"
 	"net/http"
 	"encoding/json"
@@ -12,21 +11,22 @@ import (
 
 	"github.com/go-cart/shared/erro"
 	"github.com/go-cart/internal/domain/model"
+	"go.opentelemetry.io/otel/trace"
 
 	database "github.com/go-cart/internal/infrastructure/repo/database"
 
 	go_core_http "github.com/eliezerraj/go-core/v2/http"
 	go_core_db_pg "github.com/eliezerraj/go-core/v2/database/postgre"
 	go_core_otel_trace "github.com/eliezerraj/go-core/v2/otel/trace"
+	go_core_midleware "github.com/eliezerraj/go-core/v2/middleware"
 )
 
-var tracerProvider go_core_otel_trace.TracerProvider
-
 type WorkerService struct {
-	appServer			*model.AppServer
-	workerRepository	*database.WorkerRepository
+	workerRepository 	*database.WorkerRepository
 	logger 				*zerolog.Logger
-	httpService			*go_core_http.HttpService		 	
+	tracerProvider 		*go_core_otel_trace.TracerProvider
+	httpService			*go_core_http.HttpService
+	endpoint			*[]model.Endpoint		 	
 }
 
 // about do http call 
@@ -52,18 +52,23 @@ func (s *WorkerService) doHttpCall(ctx context.Context,
 					 Err(erro.ErrNotFound).Send()
 			return nil, erro.ErrNotFound
 		} else {		
-			jsonString, err  := json.Marshal(resPayload)
+			jsonString, err := json.Marshal(resPayload)
 			if err != nil {
 				s.logger.Error().
 						Ctx(ctx).
 						Err(err).Send()
-				return nil, errors.New(err.Error())
+				return nil, fmt.Errorf("FAILED to marshal http response: %w", err)
 			}			
 			
 			message := model.APIError{}
-			json.Unmarshal(jsonString, &message)
+			if err := json.Unmarshal(jsonString, &message); err != nil {
+				s.logger.Error().
+						Ctx(ctx).
+						Err(err).Send()
+				return nil, fmt.Errorf("FAILED to unmarshal error response: %w", err)
+			}
 
-			newErr := errors.New(fmt.Sprintf("http call error: status code %d - message: %s", message.StatusCode ,message.Msg))
+			newErr := fmt.Errorf("http call error: status code %d - message: %s", statusCode, message.Msg)
 			s.logger.Error().
 					Ctx(ctx).
 					Err(newErr).Send()
@@ -75,9 +80,11 @@ func (s *WorkerService) doHttpCall(ctx context.Context,
 }
 
 // About new worker service
-func NewWorkerService(appServer	*model.AppServer,
-					  workerRepository *database.WorkerRepository, 
-					  appLogger *zerolog.Logger) *WorkerService {
+func NewWorkerService(	workerRepository *database.WorkerRepository, 
+						appLogger 		*zerolog.Logger,
+						tracerProvider 	*go_core_otel_trace.TracerProvider,
+						endpoint		*[]model.Endpoint	) *WorkerService{
+							
 	logger := appLogger.With().
 						Str("package", "domain.service").
 						Logger()
@@ -87,11 +94,45 @@ func NewWorkerService(appServer	*model.AppServer,
 	httpService := go_core_http.NewHttpService(&logger)					
 
 	return &WorkerService{
-		appServer: appServer,
 		workerRepository: workerRepository,
 		logger: &logger,
+		tracerProvider: tracerProvider,
 		httpService: httpService,
+		endpoint: endpoint,
 	}
+}
+
+// Helper: Get service endpoint by index with error handling
+func (s *WorkerService) getServiceEndpoint(index int) (*model.Endpoint, error) {
+	if s.endpoint == nil || len(*s.endpoint) <= index {
+		return nil, fmt.Errorf("service endpoint at index %d not found", index)
+	}
+	return &(*s.endpoint)[index], nil
+}
+
+// Helper: Build HTTP headers with request ID
+func (s *WorkerService) buildHeaders(ctx context.Context) map[string]string {
+	requestID := go_core_midleware.GetRequestID(ctx)
+	return map[string]string{
+		"Content-Type":  "application/json;charset=UTF-8",
+		"X-Request-Id":  requestID,
+	}
+}
+
+// Helper: Parse product from HTTP response payload
+func (s *WorkerService) parseProductFromPayload(ctx context.Context, payload interface{}) (*model.Product, error) {
+	jsonString, err := json.Marshal(payload)
+	if err != nil {
+		s.logger.Error().Ctx(ctx).Err(err).Send()
+		return nil, fmt.Errorf("FAILED to marshal response payload: %w", err)
+	}
+	
+	product := &model.Product{}
+	if err := json.Unmarshal(jsonString, product); err != nil {
+		s.logger.Error().Ctx(ctx).Err(err).Send()
+		return nil, fmt.Errorf("FAILED to unmarshal product: %w", err)
+	}
+	return product, nil
 }
 
 // About database stats
@@ -109,19 +150,20 @@ func (s * WorkerService) HealthCheck(ctx context.Context) error {
 			Ctx(ctx).
 			Str("func","HealthCheck").Send()
 
-	ctx, span := tracerProvider.SpanCtx(ctx, "service.HealthCheck")
+	ctx, span := s.tracerProvider.SpanCtx(ctx, "service.HealthCheck", trace.SpanKindInternal)
 	defer span.End()
 
 	// Check database health
-	_, spanDB := tracerProvider.SpanCtx(ctx, "DatabasePG.Ping")
+	ctx, spanDB := s.tracerProvider.SpanCtx(ctx, "DatabasePG.Ping", trace.SpanKindInternal)
 	err := s.workerRepository.DatabasePG.Ping()
+	spanDB.End()
+	
 	if err != nil {
 		s.logger.Error().
 				Ctx(ctx).
 				Err(err).Msg("*** Database HEALTH CHECK FAILED ***")
 		return erro.ErrHealthCheck
 	}
-	spanDB.End()
 
 	s.logger.Info().
 			Ctx(ctx).
@@ -130,15 +172,19 @@ func (s * WorkerService) HealthCheck(ctx context.Context) error {
 
 	// ------------------------------------------------------------
 	// check service/dependencies 
-	headers := map[string]string{
-		"Content-Type":  "application/json;charset=UTF-8",
+	endpoint, err := s.getServiceEndpoint(0)
+	if err != nil {
+		s.logger.Error().Ctx(ctx).Err(err).Send()
+		return erro.ErrHealthCheck
 	}
 
-	ctxService00, spanService00 := tracerProvider.SpanCtx(ctx, "health.service." + (*s.appServer.Endpoint)[0].HostName )
+	headers := s.buildHeaders(ctx)
+
+	ctxService00, spanService00 := s.tracerProvider.SpanCtx(ctx, "health.service." + endpoint.HostName, trace.SpanKindServer)
 	httpClientParameter := go_core_http.HttpClientParameter {
-		Url:	(*s.appServer.Endpoint)[0].Url + "/health",
+		Url:	endpoint.Url + "/health",
 		Method:	"GET",
-		Timeout: (*s.appServer.Endpoint)[0].HttpTimeout,
+		Timeout: endpoint.HttpTimeout,
 		Headers: &headers,
 	}
 
@@ -148,7 +194,7 @@ func (s * WorkerService) HealthCheck(ctx context.Context) error {
 	if err != nil {
 		s.logger.Error().
 				Ctx(ctxService00).
-				Err(err).Msgf("*** Service %s HEALTH CHECK FAILED ***", (*s.appServer.Endpoint)[0].HostName )
+				Err(err).Msgf("*** Service %s HEALTH CHECK FAILED ***", endpoint.HostName)
 		return erro.ErrHealthCheck
 	}
 	spanService00.End()
@@ -156,7 +202,7 @@ func (s * WorkerService) HealthCheck(ctx context.Context) error {
 	s.logger.Info().
 			Ctx(ctx).
 			Str("func","HealthCheck").
-			Msgf("*** Service %s HEALTH CHECK SUCCESSFULL ***", (*s.appServer.Endpoint)[0].HostName )
+			Msgf("*** Service %s HEALTH CHECK SUCCESSFULL ***", endpoint.HostName)
 
 	return nil
 }
@@ -169,7 +215,7 @@ func (s *WorkerService) AddCart(ctx context.Context,
 			Str("func","AddCart").Send()
 
 	// trace and log 
-	ctx, span := tracerProvider.SpanCtx(ctx, "service.AddCart")
+	ctx, span := s.tracerProvider.SpanCtx(ctx, "service.AddCart", trace.SpanKindServer)
 
 	// prepare database
 	tx, conn, err := s.workerRepository.DatabasePG.StartTx(ctx)
@@ -201,22 +247,22 @@ func (s *WorkerService) AddCart(ctx context.Context,
 	}
 	cart.ID = res_cart.ID
 
-	// prepare headers http for calling services
-	trace_id := fmt.Sprintf("%v",ctx.Value("request-id"))
-
-	headers := map[string]string{
-		"Content-Type":  "application/json;charset=UTF-8",
-		"X-Request-Id": trace_id,
+	// Get service endpoint
+	endpoint, err := s.getServiceEndpoint(0)
+	if err != nil {
+		return nil, err
 	}
+	
+	headers := s.buildHeaders(ctx)
 
 	// Create cart itens
     for i := range *cart.CartItem { 
 		cartItem := &(*cart.CartItem)[i]
 
 		httpClientParameter := go_core_http.HttpClientParameter {
-			Url:  (*s.appServer.Endpoint)[0].Url + "/product/" + cartItem.Product.Sku,
+			Url:  endpoint.Url + "/product/" + cartItem.Product.Sku,
 			Method: "GET",
-			Timeout: (*s.appServer.Endpoint)[0].HttpTimeout,
+			Timeout: endpoint.HttpTimeout,
 			Headers: &headers,
 		}
 		
@@ -227,20 +273,15 @@ func (s *WorkerService) AddCart(ctx context.Context,
 			return nil, err
 		}
 
-		jsonString, err  := json.Marshal(resPayload)
+		product, err := s.parseProductFromPayload(ctx, resPayload)
 		if err != nil {
-			s.logger.Error().
-					Ctx(ctx).
-					Err(err).Send()
-			return nil, errors.New(err.Error())
+			return nil, err
 		}
-		product := model.Product{}
-		json.Unmarshal(jsonString, &product)
 
 		// prepare data
 		cartItem.CreatedAt = cart.CreatedAt
 		cartItem.Status = "CART_ITEM:PENDING"
-		cartItem.Product = product
+		cartItem.Product = *product
 
     	res_cart_item, err := s.workerRepository.AddCartItem(ctx,
 															 tx,
@@ -263,7 +304,7 @@ func (s * WorkerService) GetCart(ctx context.Context,
 			Str("func","GetCart").Send()
 
 	// trace
-	ctx, span := tracerProvider.SpanCtx(ctx, "service.GetCart")
+	ctx, span := s.tracerProvider.SpanCtx(ctx, "service.GetCart", trace.SpanKindInternal)
 	defer span.End()
 
 	// Call a service
@@ -272,21 +313,21 @@ func (s * WorkerService) GetCart(ctx context.Context,
 		return nil, err
 	}
 
-	// prepare headers http for calling services
-	trace_id := fmt.Sprintf("%v",ctx.Value("request-id"))
-	headers := map[string]string{
-		"Content-Type":  "application/json;charset=UTF-8",
-		"X-Request-Id": trace_id,
-	}
+	headers := s.buildHeaders(ctx)
 
 	// Get product details for each cart item
 	for i := range *resCart.CartItem {
 		cartItem := &(*resCart.CartItem)[i]
 
+		endpoint, err := s.getServiceEndpoint(0)
+		if err != nil {
+			return nil, err
+		}
+
 		httpClientParameter := go_core_http.HttpClientParameter {
-			Url:  fmt.Sprintf("%v%v%v", (*s.appServer.Endpoint)[0].Url, "/productId/", cartItem.Product.ID ),
+			Url:  fmt.Sprintf("%v%v%v", endpoint.Url, "/productId/", cartItem.Product.ID ),
 			Method: "GET",
-			Timeout: (*s.appServer.Endpoint)[0].HttpTimeout,
+			Timeout: endpoint.HttpTimeout,
 			Headers: &headers,
 		}
 
@@ -297,16 +338,11 @@ func (s * WorkerService) GetCart(ctx context.Context,
 			return nil, err
 		}
 
-		jsonString, err  := json.Marshal(resPayload)
+		product, err := s.parseProductFromPayload(ctx, resPayload)
 		if err != nil {
-			s.logger.Error().
-					Ctx(ctx).
-					Err(err).Send()
-			return nil, errors.New(err.Error())
+			return nil, err
 		}
-		product := model.Product{}
-		json.Unmarshal(jsonString, &product)
-		cartItem.Product = product
+		cartItem.Product = *product
 	}
 
 	return resCart, nil
@@ -320,7 +356,7 @@ func (s * WorkerService) UpdateCart(ctx context.Context,
 			Str("func","UpdateCart").Send()
 
 	// trace
-	ctx, span := tracerProvider.SpanCtx(ctx, "service.UpdateCart")
+	ctx, span := s.tracerProvider.SpanCtx(ctx, "service.UpdateCart", trace.SpanKindInternal)
 
 	// prepare database
 	tx, conn, err := s.workerRepository.DatabasePG.StartTx(ctx)
@@ -373,7 +409,7 @@ func (s * WorkerService) UpdateCartItem(ctx context.Context,
 			Str("func","UpdateCartItem").Send()
 			
 	// trace
-	ctx, span := tracerProvider.SpanCtx(ctx, "service.UpdateCartItem")
+	ctx, span := s.tracerProvider.SpanCtx(ctx, "service.UpdateCartItem", trace.SpanKindInternal)
 
 	// prepare database
 	tx, conn, err := s.workerRepository.DatabasePG.StartTx(ctx)

@@ -4,6 +4,16 @@
 
    The main purpose is create an cart and cart item (with products selected).
 
+   To local test you should use the work space:
+   
+   Create a work space (root)
+   
+    go work init ./cmd ../go-core
+
+   Add module (inside /cmd)
+   
+    go work use ..
+    
 ## Sequence Diagram
 
 ![alt text](cart.png)
