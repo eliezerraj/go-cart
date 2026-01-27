@@ -12,6 +12,7 @@ import (
 	"github.com/go-cart/shared/erro"
 	"github.com/go-cart/internal/domain/model"
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/codes"	
 
 	go_core_otel_trace "github.com/eliezerraj/go-core/v2/otel/trace"
 	go_core_db_pg "github.com/eliezerraj/go-core/v2/database/postgre"
@@ -137,9 +138,11 @@ func (w* WorkerRepository) AddCart(ctx context.Context,
 						cart.CreatedAt)
 						
 	if err := row.Scan(&id); err != nil {
+		span.RecordError(err) 
+        span.SetStatus(codes.Error, err.Error())
 		w.logger.Error().
-				Ctx(ctx).
-				Err(err).Send()
+			Ctx(ctx).
+			Err(err).Send()
 		return nil, fmt.Errorf("FAILED to scan cart ID: %w", err)
 	}
 
@@ -186,6 +189,8 @@ func (w* WorkerRepository) AddCartItem(ctx context.Context,
 						cartItem.CreatedAt)
 						
 	if err := row.Scan(&id); err != nil {
+		span.RecordError(err) 
+        span.SetStatus(codes.Error, err.Error())
 		w.logger.Error().
 				Ctx(ctx).
 				Err(err).Send()
@@ -212,6 +217,8 @@ func (w *WorkerRepository) GetCart(ctx context.Context,
 	// db connection
 	conn, err := w.DatabasePG.Acquire(ctx)
 	if err != nil {
+		span.RecordError(err) 
+        span.SetStatus(codes.Error, err.Error())
 		w.logger.Error().
 				Ctx(ctx).
 				Err(err).Send()
@@ -243,6 +250,8 @@ func (w *WorkerRepository) GetCart(ctx context.Context,
 							query, 
 							cart.ID)
 	if err != nil {
+		span.RecordError(err) 
+        span.SetStatus(codes.Error, err.Error())
 		w.logger.Error().
 				Ctx(ctx).
 				Err(err).Send()
@@ -251,6 +260,8 @@ func (w *WorkerRepository) GetCart(ctx context.Context,
 	defer rows.Close()
 	
     if err := rows.Err(); err != nil {
+		span.RecordError(err) 
+        span.SetStatus(codes.Error, err.Error())
 		w.logger.Error().
 				Ctx(ctx).
 				Err(err).Msg("error iterating cart rows")
@@ -282,6 +293,8 @@ func (w *WorkerRepository) GetCart(ctx context.Context,
 							&nullCartItemUpdatedAt,
 						)
 		if err != nil {
+			span.RecordError(err) 
+			span.SetStatus(codes.Error, err.Error())
 			w.logger.Error().
 					Ctx(ctx).
 					Err(err).Send()
@@ -331,10 +344,11 @@ func (w *WorkerRepository) UpdateCart(ctx context.Context,
 						cart.Status,		
 					)
 	if err != nil {
+		span.RecordError(err) 
+        span.SetStatus(codes.Error, err.Error())
 		w.logger.Error().
-				Ctx(ctx).
-				Str("func","UpdateCart").
-				Err(err).Send()
+			Ctx(ctx).
+			Err(err).Send()
 		return 0, fmt.Errorf("FAILED to update cart: %w", err)
 	}
 
@@ -356,6 +370,8 @@ func (w *WorkerRepository) GetCartItem(ctx context.Context,
 	// db connection
 	conn, err := w.DatabasePG.Acquire(ctx)
 	if err != nil {
+		span.RecordError(err) 
+        span.SetStatus(codes.Error, err.Error())		
 		w.logger.Error().
 				Ctx(ctx).
 				Err(err).Send()
@@ -379,17 +395,22 @@ func (w *WorkerRepository) GetCartItem(ctx context.Context,
 							query, 
 							cartItem.ID)
 	if err != nil {
+		span.RecordError(err) 
+        span.SetStatus(codes.Error, err.Error())		
 		w.logger.Error().
-				Ctx(ctx).
-				Err(err).Send()
+			Ctx(ctx).
+			Err(err).Send()
 		return nil, fmt.Errorf("FAILED to query cart item: %w", err)
 	}
 	defer rows.Close()
 	
     if err := rows.Err(); err != nil {
+		span.RecordError(err) 
+        span.SetStatus(codes.Error, err.Error())
 		w.logger.Error().
-				Ctx(ctx).
-				Err(err).Msg("error iterating cart item rows")
+			Ctx(ctx).
+			Err(err).
+			Msg("error iterating cart item rows")
         return nil, fmt.Errorf("error iterating cart item rows: %w", err)
     }
 
@@ -397,6 +418,8 @@ func (w *WorkerRepository) GetCartItem(ctx context.Context,
 	for rows.Next() {
 		item, err := w.scanCartItemFromRow(rows)
 		if err != nil {
+			span.RecordError(err) 
+			span.SetStatus(codes.Error, err.Error())
 			w.logger.Error().
 					Ctx(ctx).
 					Err(err).Send()
@@ -440,10 +463,11 @@ func (w *WorkerRepository) UpdateCartItem(ctx context.Context,
 						cartItem.Status,		
 					)
 	if err != nil {
+		span.RecordError(err) 
+        span.SetStatus(codes.Error, err.Error())
 		w.logger.Error().
-				Ctx(ctx).
-				Str("func","UpdateCartItem").
-				Err(err).Send()
+			Ctx(ctx).
+			Err(err).Send()
 		return 0, fmt.Errorf("FAILED to update cart item: %w", err)
 	}
 
