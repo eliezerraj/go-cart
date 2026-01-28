@@ -17,7 +17,8 @@ import (
 	"github.com/go-cart/internal/domain/model"
 	"github.com/go-cart/internal/domain/service"
 	"go.opentelemetry.io/otel/trace"
-	
+	"go.opentelemetry.io/otel/codes"	
+
 	go_core_midleware "github.com/eliezerraj/go-core/v2/middleware"
 	go_core_otel_trace "github.com/eliezerraj/go-core/v2/otel/trace"
 )
@@ -40,8 +41,8 @@ func (h *HttpRouters) withContext(req *http.Request, spanName string) (context.C
 		time.Duration(h.appServer.Server.CtxTimeout) * time.Second)
 	
 	h.logger.Info().
-			Ctx(ctx).
-			Str("func", spanName).Send()
+		Ctx(ctx).
+		Str("func", spanName).Send()
 	
 	ctx, span := h.tracerProvider.SpanCtx(ctx, "adapter."+spanName, trace.SpanKindInternal)
 	return ctx, cancel, span
@@ -62,7 +63,7 @@ func NewHttpRouters(appServer *model.AppServer,
 						Logger()
 			
 	logger.Info().
-			Str("func","NewHttpRouters").Send()
+		Str("func","NewHttpRouters").Send()
 
 	return HttpRouters{
 		workerService: workerService,
@@ -105,6 +106,10 @@ func (h *HttpRouters) ErrorHandler(traceID string, err error) *go_core_midleware
 
 	if strings.Contains(err.Error(), "not found") {
 		httpStatusCode = http.StatusNotFound
+	}
+
+	if strings.Contains(err.Error(), "must be greater than zero") {
+		httpStatusCode = http.StatusBadRequest
 	}
 
 	if strings.Contains(err.Error(), "duplicate key") || 
@@ -171,7 +176,10 @@ func (h *HttpRouters) AddCart(rw http.ResponseWriter, req *http.Request) error {
 	cart := model.Cart{}
 	err := json.NewDecoder(req.Body).Decode(&cart)
 	defer req.Body.Close()
+
     if err != nil {
+		span.RecordError(err) 
+        span.SetStatus(codes.Error, err.Error())	
 		return h.ErrorHandler(h.getTraceID(ctx), erro.ErrBadRequest)
     }
 
@@ -194,6 +202,8 @@ func (h *HttpRouters) GetCart(rw http.ResponseWriter, req *http.Request) error {
 	vars := mux.Vars(req)
 	cartID, err := h.parseIDParam(vars)
 	if err != nil {
+		span.RecordError(err) 
+        span.SetStatus(codes.Error, err.Error())	
 		return h.ErrorHandler(h.getTraceID(ctx), err)
 	}
 
@@ -219,6 +229,8 @@ func (h *HttpRouters) UpdateCart(rw http.ResponseWriter, req *http.Request) erro
 	defer req.Body.Close()
 
 	if err != nil {
+		span.RecordError(err) 
+        span.SetStatus(codes.Error, err.Error())	
 		return h.ErrorHandler(h.getTraceID(ctx), erro.ErrBadRequest)
 	}
 
@@ -226,6 +238,8 @@ func (h *HttpRouters) UpdateCart(rw http.ResponseWriter, req *http.Request) erro
 	vars := mux.Vars(req)
 	cartID, err := h.parseIDParam(vars)
 	if err != nil {
+		span.RecordError(err) 
+        span.SetStatus(codes.Error, err.Error())	
 		return h.ErrorHandler(h.getTraceID(ctx), err)
 	}
 
@@ -252,6 +266,8 @@ func (h *HttpRouters) UpdateCartItem(rw http.ResponseWriter, req *http.Request) 
 	defer req.Body.Close()
 
 	if err != nil {
+		span.RecordError(err) 
+        span.SetStatus(codes.Error, err.Error())	
 		return h.ErrorHandler(h.getTraceID(ctx), erro.ErrBadRequest)
 	}
 	
@@ -259,6 +275,8 @@ func (h *HttpRouters) UpdateCartItem(rw http.ResponseWriter, req *http.Request) 
 	vars := mux.Vars(req)
 	cartItemID, err := h.parseIDParam(vars)
 	if err != nil {
+		span.RecordError(err) 
+        span.SetStatus(codes.Error, err.Error())	
 		return h.ErrorHandler(h.getTraceID(ctx), err)
 	}
 
