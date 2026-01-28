@@ -108,6 +108,10 @@ func (h *HttpRouters) ErrorHandler(traceID string, err error) *go_core_midleware
 		httpStatusCode = http.StatusNotFound
 	}
 
+	if strings.Contains(err.Error(), "must be greater than zero") {
+		httpStatusCode = http.StatusBadRequest
+	}
+
 	if strings.Contains(err.Error(), "duplicate key") || 
 	   strings.Contains(err.Error(), "unique constraint") {
 		httpStatusCode = http.StatusBadRequest

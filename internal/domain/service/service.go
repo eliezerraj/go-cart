@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 	"context"
-	"net/http"
 	"encoding/json"
 
 	"github.com/rs/zerolog"
@@ -31,14 +30,13 @@ type WorkerService struct {
 }
 
 // about do http call 
-func (s *WorkerService) doHttpCall(ctx context.Context,
-									httpClientParameter go_core_http.HttpClientParameter) (interface{}, error) {
+func (s *WorkerService) doHttpCall(ctx context.Context,	httpClientParameter go_core_http.HttpClientParameter) (interface{}, error) {
 	s.logger.Info().
 			 Ctx(ctx).
 			 Str("func","doHttpCall").Send()
 
-	resPayload, statusCode, err := s.httpService.DoHttp(ctx, 
-														httpClientParameter)
+	resPayload, statusCode, err := s.httpService.DoHttp(ctx, httpClientParameter)
+
 	if err != nil {
 		s.logger.Error().
 			Ctx(ctx).
@@ -46,39 +44,51 @@ func (s *WorkerService) doHttpCall(ctx context.Context,
 		return nil, err
 	}
 
-	if statusCode != http.StatusOK {
-		if statusCode == http.StatusNotFound {
-			s.logger.Warn().
-				Ctx(ctx).
-				Err(erro.ErrNotFound).Send()
-			return nil, erro.ErrNotFound
-		} else {		
-			jsonString, err := json.Marshal(resPayload)
-			if err != nil {			
-				s.logger.Error().
-					Ctx(ctx).
-					Err(err).Send()
-				return nil, fmt.Errorf("FAILED to marshal http response: %w", err)
-			}			
-			
-			message := model.APIError{}
-			if err := json.Unmarshal(jsonString, &message); err != nil {
-				s.logger.Error().
-					Ctx(ctx).
-					Err(err).Send()
-				return nil, fmt.Errorf("FAILED to unmarshal error response: %w", err)
-			}
+	s.logger.Debug().
+		Interface("+++++++++++++++++> httpClientParameter.Url:",httpClientParameter.Url).
+		Interface("+++++++++++++++++> resPayload:",resPayload).
+		Interface("+++++++++++++++++> statusCode:",statusCode).
+		Interface("+++++++++++++++++> err:", err).
+		Send()
 
-			newErr := fmt.Errorf("http call error: status code %d - message: %s", statusCode, message.Msg)
+		switch (statusCode) {
+			case 200:
+				return resPayload, nil
+			case 201:
+				return resPayload, nil	
+			case 400:
+			case 401:
+			case 403:
+			case 404:
+			case 500:
+				return nil, fmt.Errorf("internal server error (status code %d) - (process: %s)", statusCode, httpClientParameter.Url)
+			default:
+		}
 
+		// marshal response payload
+		jsonString, err := json.Marshal(resPayload)
+		if err != nil {
 			s.logger.Error().
 				Ctx(ctx).
-				Err(newErr).Send()
-			return nil, newErr
+				Err(err).Send()
+			return nil, fmt.Errorf("FAILED to marshal http response: %w (process: %s)", err, httpClientParameter.Url)
 		}
-	}
 
-	return resPayload, nil
+		// parse error message
+		message := model.APIError{}
+		if err := json.Unmarshal(jsonString, &message); err != nil {
+			s.logger.Error().
+				Ctx(ctx).
+				Err(err).Send()
+			return nil, fmt.Errorf("FAILED to unmarshal error response: %w (process: %s)", err, httpClientParameter.Url)
+		}
+
+		newErr := fmt.Errorf("%s - (status code %d) - (process: %s)", message.Msg,statusCode, httpClientParameter.Url)
+		s.logger.Error().
+			Ctx(ctx).
+			Err(newErr).Send()
+		
+	return nil, newErr
 }
 
 // About new worker service
@@ -300,6 +310,13 @@ func (s *WorkerService) AddCart(ctx context.Context,
 		cartItem.CreatedAt = cart.CreatedAt
 		cartItem.Status = "CART_ITEM:PENDING"
 		cartItem.Product = *product
+		
+		if cartItem.Quantity <= 0 || cartItem.Price <= 0 {
+			err := fmt.Errorf("cart item quantity / price must be greater than zero")
+			span.RecordError(err) 
+			span.SetStatus(codes.Error, err.Error())
+			return nil, err
+		}
 
     	res_cart_item, err := s.workerRepository.AddCartItem(ctx,
 															 tx,
