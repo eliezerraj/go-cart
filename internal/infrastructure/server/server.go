@@ -106,7 +106,9 @@ func (h *HttpAppServer) StartHttpAppServer(	ctx context.Context,
 	go func() {
 		err := srv.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
-			h.logger.Error().Err(err).Msg("Server error")
+			h.logger.Error().	
+				Ctx(ctx).
+				Err(err).Msg("Server error")
 			serverErrors <- err
 		}
 	}()
@@ -121,12 +123,12 @@ func (h *HttpAppServer) StartHttpAppServer(	ctx context.Context,
 			switch sig {
 			case syscall.SIGHUP:
 				h.logger.Info().
-						Ctx(ctx).
-						Msg("Received SIGHUP: Reloading Configuration...")
+					Ctx(ctx).
+					Msg("Received SIGHUP: Reloading Configuration...")
 			case syscall.SIGINT, syscall.SIGTERM:
 				h.logger.Info().
-						Ctx(ctx).
-						Msg("Received SIGINT/SIGTERM: Http Server shutting down...")
+					Ctx(ctx).
+					Msg("Received SIGINT/SIGTERM: Http Server shutting down...")
 				
 				// Graceful shutdown with timeout
 				shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -134,18 +136,21 @@ func (h *HttpAppServer) StartHttpAppServer(	ctx context.Context,
 				
 				if err := srv.Shutdown(shutdownCtx); err != nil && err != http.ErrServerClosed {
 					h.logger.Error().
-							Ctx(ctx).
-							Err(err).
-							Msg("Error during shutdown")
+						Ctx(ctx).
+						Err(err).
+						Msg("Error during shutdown")
 				}
 				return
 			default:
 				h.logger.Info().
-						Ctx(ctx).
-						Interface("Received signal", sig).Send()
+					Ctx(ctx).
+					Interface("Received signal", sig).Send()
 			}
 		case err := <-serverErrors:
-			h.logger.Error().Err(err).Msg("Server stopped unexpectedly")
+			h.logger.Error().
+				Ctx(ctx).
+				Err(err).
+				Msg("Server stopped unexpectedly")
 			return
 		}
 	}

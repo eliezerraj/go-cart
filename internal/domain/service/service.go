@@ -51,42 +51,46 @@ func (s *WorkerService) doHttpCall(ctx context.Context,	httpClientParameter go_c
 		Interface("+++++++++++++++++> err:", err).
 		Send()
 
-		switch (statusCode) {
-			case 200:
-				return resPayload, nil
-			case 201:
-				return resPayload, nil	
-			case 400:
-			case 401:
-			case 403:
-			case 404:
-			case 500:
-				return nil, fmt.Errorf("internal server error (status code %d) - (process: %s)", statusCode, httpClientParameter.Url)
-			default:
-		}
-
-		// marshal response payload
-		jsonString, err := json.Marshal(resPayload)
-		if err != nil {
+	switch (statusCode) {
+		case 200:
+			return resPayload, nil
+		case 201:
+			return resPayload, nil	
+		case 400:
+		case 401:
+		case 403:
+		case 404:
+		case 500:
+			newErr := fmt.Errorf("internal server error (status code %d) - (process: %s)", statusCode, httpClientParameter.Url)
 			s.logger.Error().
 				Ctx(ctx).
-				Err(err).Send()
-			return nil, fmt.Errorf("FAILED to marshal http response: %w (process: %s)", err, httpClientParameter.Url)
-		}
+				Err(newErr).Send()
+			return nil, newErr
+		default:
+	}
 
-		// parse error message
-		message := model.APIError{}
-		if err := json.Unmarshal(jsonString, &message); err != nil {
-			s.logger.Error().
-				Ctx(ctx).
-				Err(err).Send()
-			return nil, fmt.Errorf("FAILED to unmarshal error response: %w (process: %s)", err, httpClientParameter.Url)
-		}
-
-		newErr := fmt.Errorf("%s - (status code %d) - (process: %s)", message.Msg,statusCode, httpClientParameter.Url)
+	// marshal response payload
+	jsonString, err := json.Marshal(resPayload)
+	if err != nil {
 		s.logger.Error().
 			Ctx(ctx).
-			Err(newErr).Send()
+			Err(err).Send()
+		return nil, fmt.Errorf("FAILED to marshal http response: %w (process: %s)", err, httpClientParameter.Url)
+	}
+
+	// parse error message
+	message := model.APIError{}
+	if err := json.Unmarshal(jsonString, &message); err != nil {
+		s.logger.Error().
+			Ctx(ctx).
+			Err(err).Send()
+		return nil, fmt.Errorf("FAILED to unmarshal error response: %w (process: %s)", err, httpClientParameter.Url)
+	}
+
+	newErr := fmt.Errorf("%s - (status code %d) - (process: %s)", message.Msg,statusCode, httpClientParameter.Url)
+	s.logger.Warn().
+		Ctx(ctx).
+		Err(newErr).Send()
 		
 	return nil, newErr
 }
