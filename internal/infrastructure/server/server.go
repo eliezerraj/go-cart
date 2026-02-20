@@ -294,7 +294,7 @@ func (h *HttpAppServer) withMetrics(next http.HandlerFunc) http.HandlerFunc {
                 metric.WithAttributes(
                     attribute.Int("status_code", status),
                     attribute.String("method", r.Method),
-                    attribute.String("path", r.URL.Path),
+                    attribute.String("path", pathTemplate),
                 ),
             )
 
