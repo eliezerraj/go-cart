@@ -46,8 +46,8 @@ func (w *WorkerRepository) ListCartItemWindow( ctx context.Context,
 					 cart_item ci 
 				where c.id = ci.fk_cart_id 
 				and ci.fk_product_id = $1
-				order by c.created_at desc
-				limit 20`
+				order by c.created_at asc
+				limit 10`
 
 	rows, err := conn.Query(ctx, 
 							query, 
