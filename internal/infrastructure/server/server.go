@@ -36,6 +36,7 @@ const (
 	routeInfo        = "/info"
 	routeCart        = "/cart"
 	routeCartItem    = "/cartItem"
+	routeLisCartItemWindowed = "/cartItem/list/product"
 )
 
 // ExcludedFromTracing routes that should not create spans
@@ -238,6 +239,9 @@ func (h *HttpAppServer) setupRoutes(appHttpRouters app_http_routers.HttpRouters)
 
 	putCartItem := appRouter.Methods(http.MethodPut, http.MethodOptions).Subrouter()
 	putCartItem.HandleFunc(routeCartItem+"/{id}", h.withMetrics(appMiddleWare.MiddleWareErrorHandler(appHttpRouters.UpdateCartItem)))
+
+	listCartItemWindowed := appRouter.Methods(http.MethodGet, http.MethodOptions).Subrouter()
+	listCartItemWindowed.HandleFunc(routeLisCartItemWindowed+"/{id}", h.withMetrics(appMiddleWare.MiddleWareErrorHandler(appHttpRouters.ListCartItemWindow)))
 
 	return appRouter
 }

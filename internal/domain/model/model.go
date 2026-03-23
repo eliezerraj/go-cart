@@ -62,6 +62,7 @@ type Product struct {
 	Type		string 		`json:"type,omitempty"`
 	Status		string 		`json:"status,omitempty"`
 	Name		string 		`json:"name,omitempty"`
+	LeadTime	int			`json:"lead_time,omitempty"`
 	CreatedAt	time.Time 	`json:"created_at,omitempty"`
 	UpdatedAt	*time.Time 	`json:"update_at,omitempty"`	
 }
@@ -76,13 +77,13 @@ type Cart struct {
 }
 
 type CartItem struct {
-	ID				int		`json:"id,omitempty"`
-	Product 		Product	`json:"product"`
-	Status			string 	`json:"status,omitempty"`
-	Quantity		int		`json:"quantity,omitempty"`
-	Discount		float64	`json:"discount,omitempty"`
-	Currency		string 	`json:"currency,omitempty"`	
-	Price			float64	`json:"price,omitempty"`
+	ID				int			`json:"id,omitempty"`
+	Product 		Product		`json:"product"`
+	Status			string 		`json:"status,omitempty"`
+	Quantity		int			`json:"quantity,omitempty"`
+	Discount		float64		`json:"discount,omitempty"`
+	Currency		string 		`json:"currency,omitempty"`	
+	Price			float64		`json:"price,omitempty"`
 	CreatedAt		time.Time 	`json:"created_at,omitempty"`
 	UpdatedAt		*time.Time 	`json:"update_at,omitempty"`	
 }
