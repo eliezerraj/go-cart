@@ -71,7 +71,7 @@ Parameters:
 Mappings:
   ApigwMap:
     Cart:
-      EndpointURL: nlb-vpce-eks-arch-02-dev.architecture.caradhras.io/live
+      EndpointURL: go-cart.architecturedev.caradhras.io
 
 Resources:
   ApiPublicLogGroup:
@@ -139,7 +139,7 @@ Resources:
                 httpMethod: GET
                 connectionType: VPC_LINK
                 connectionId: !Ref VpcLinkIdEks01
-                integrationTarget: "arn:aws:elasticloadbalancing:us-east-2:908671954593:loadbalancer/net/nlb-vpce-eks-arch-02-dev/b3c3be15a9e94703"              
+                integrationTarget: "arn:aws:elasticloadbalancing:us-east-2:992382474575:loadbalancer/app/k8s-testa-albarche-2e5ca49df0/ec0ab7280b7a6081"              
                 uri: 
                   Fn::Sub:
                   - 'https://${EksDomainName}/{proxy}'
@@ -170,7 +170,7 @@ Resources:
                 httpMethod: POST
                 connectionType: VPC_LINK
                 connectionId: !Ref VpcLinkIdEks01
-                integrationTarget: "arn:aws:elasticloadbalancing:us-east-2:908671954593:loadbalancer/net/nlb-vpce-eks-arch-02-dev/b3c3be15a9e94703"           
+                integrationTarget: "arn:aws:elasticloadbalancing:us-east-2:992382474575:loadbalancer/app/k8s-testa-albarche-2e5ca49df0/ec0ab7280b7a6081"           
                 uri: 
                   Fn::Sub:
                   - 'https://${EksDomainName}/{proxy}'
@@ -201,7 +201,7 @@ Resources:
                 httpMethod: PUT
                 connectionType: VPC_LINK
                 connectionId: !Ref VpcLinkIdEks01
-                integrationTarget: "arn:aws:elasticloadbalancing:us-east-2:908671954593:loadbalancer/net/nlb-vpce-eks-arch-02-dev/b3c3be15a9e94703"           
+                integrationTarget: "arn:aws:elasticloadbalancing:us-east-2:992382474575:loadbalancer/app/k8s-testa-albarche-2e5ca49df0/ec0ab7280b7a6081"           
                 uri: 
                   Fn::Sub:
                   - 'https://${EksDomainName}/{proxy}'
@@ -332,9 +332,9 @@ Resources:
       WebACLArn:
         Ref: WafaclArn
 
-Outputs:
-  ApiPublicGoCartGateway:
-    Value:
-      Ref: ApiPublicGoCartGateway
-    Export:
-      Name: ApiPublicGoClearanceGateway
+#Outputs:
+#  ApiPublicGoCartGateway:
+#    Value:
+#      Ref: ApiPublicGoCartGateway
+#    Export:
+#      Name: ApiPublicGoClearanceGateway
