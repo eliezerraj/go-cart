@@ -241,7 +241,7 @@ func (h *HttpAppServer) setupRoutes(appHttpRouters app_http_routers.HttpRouters)
 	putCartItem.HandleFunc(routeCartItem+"/{id}", h.withMetrics(appMiddleWare.MiddleWareErrorHandler(appHttpRouters.UpdateCartItem)))
 
 	listCartItemWindowed := appRouter.Methods(http.MethodGet, http.MethodOptions).Subrouter()
-	listCartItemWindowed.HandleFunc(routeLisCartItemWindowed+"/{id}", h.withMetrics(appMiddleWare.MiddleWareErrorHandler(appHttpRouters.ListCartItemWindow)))
+	listCartItemWindowed.HandleFunc(routeLisCartItemWindowed, h.withMetrics(appMiddleWare.MiddleWareErrorHandler(appHttpRouters.ListCartItemWindow)))
 
 	return appRouter
 }

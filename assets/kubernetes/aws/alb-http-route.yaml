@@ -17,9 +17,24 @@ spec:
       sectionName: https-listener
   rules:
     - matches:
-        - path:
+      - path:
             type: PathPrefix
             value: /
+        headers:
+        - name: x-env
+          value: aws
       backendRefs:
         - name: svc-go-cart
           port: 7001
+          namespace: test-a
+    - matches:
+      - path:
+            type: PathPrefix
+            value: /
+        headers:
+        - name: x-env
+          value: azure
+      backendRefs:
+        - name: svc-go-cart
+          port: 7001
+          namespace: wk-az

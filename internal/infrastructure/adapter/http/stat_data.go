@@ -2,9 +2,8 @@ package http
 
 import (
 	"net/http"
-
-	"github.com/gorilla/mux"
-
+	"strconv"
+	"github.com/go-cart/shared/erro"
 	"github.com/go-cart/internal/domain/model"
 )
 
@@ -15,13 +14,26 @@ func (h *HttpRouters) ListCartItemWindow(rw http.ResponseWriter, req *http.Reque
 	defer cancel()
 	defer span.End()
 
-	// decode payload			
-	vars := mux.Vars(req)
-	sku := vars["id"]
+	query := req.URL.Query()
+	sku := query.Get("sku")
+	if sku == "" {
+		return h.ErrorHandler(h.getTraceID(ctx), erro.ErrBadRequest)
+	}
+
+	// default window is 24, can be override by query parameter
+	window := 24
+	windowParam := query.Get("window")
+	if windowParam != "" {
+		parsedWindow, err := strconv.Atoi(windowParam)
+		if err != nil || parsedWindow <= 0 {
+			return h.ErrorHandler(h.getTraceID(ctx), erro.ErrBadRequest)
+		}
+		window = parsedWindow
+	}
 
 	cartitem := model.CartItem{Product: model.Product{Sku: sku}}
 
-	res, err := h.workerService.ListCartItemWindow(ctx, &cartitem)
+	res, err := h.workerService.ListCartItemWindow(ctx, window, &cartitem)
 	if err != nil {
 		return h.ErrorHandler(h.getTraceID(ctx), err)
 	}

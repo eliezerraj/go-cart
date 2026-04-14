@@ -2,7 +2,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: &app-name go-cart-hpa
-  namespace: test-a
+  namespace: wk-az
   labels:
     app: *app-name
 spec:
@@ -11,7 +11,7 @@ spec:
     kind: Deployment
     name: go-cart
   minReplicas: 1
-  maxReplicas: 6
+  maxReplicas: 3
   metrics:
   - type: Resource
     resource:

@@ -13,7 +13,8 @@ import (
 
 
 // About a windowed data from given product. It´s used from stats inference how to know the velocity of inventory
-func (w *WorkerRepository) ListCartItemWindow( ctx context.Context,
+func (w *WorkerRepository) ListCartItemWindow(  ctx context.Context,
+												windowSize int,
 												cartItem *model.CartItem) (*[]model.CartItem, error) {
 	w.logger.Info().
 			Ctx(ctx).
@@ -36,22 +37,23 @@ func (w *WorkerRepository) ListCartItemWindow( ctx context.Context,
 	defer w.DatabasePG.Release(conn)
 
 	// Query and Execute
-	query := `select 	ci.fk_product_id, 
-						ci.quantity,
-						ci.price, 
-						ci.discount,
-						ci.status,
-						ci.created_at   
-				from cart c,
-					 cart_item ci 
-				where c.id = ci.fk_cart_id 
-				and ci.fk_product_id = $1
-				order by c.created_at asc
-				limit 10`
+	query := `select * from (select 	ci.fk_product_id, 
+									ci.quantity,
+									ci.price, 
+									ci.discount,
+									ci.status,
+									ci.created_at   
+							from cart c,
+								cart_item ci 
+							where c.id = ci.fk_cart_id 
+							and ci.fk_product_id = $1
+							order by c.created_at desc
+							limit $2 ) order by created_at asc`
 
 	rows, err := conn.Query(ctx, 
 							query, 
-							cartItem.Product.ID)
+							cartItem.Product.ID,
+							windowSize)
 	if err != nil {
 		span.RecordError(err) 
         span.SetStatus(codes.Error, err.Error())

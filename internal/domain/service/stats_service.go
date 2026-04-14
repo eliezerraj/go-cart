@@ -10,7 +10,8 @@ import (
 	"go.opentelemetry.io/otel/codes"
 )
 
-func (s * WorkerService) ListCartItemWindow(ctx context.Context, 
+func (s * WorkerService) ListCartItemWindow(ctx context.Context,
+											windowSize int,
 								   			cartItem *model.CartItem) (*[]model.CartItem, error){
 
 	s.logger.Info().
@@ -53,7 +54,7 @@ func (s * WorkerService) ListCartItemWindow(ctx context.Context,
 
 	cartItem.Product = *product
 
-	cartItems, err := s.workerRepository.ListCartItemWindow(ctx, cartItem)
+	cartItems, err := s.workerRepository.ListCartItemWindow(ctx, windowSize, cartItem)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
