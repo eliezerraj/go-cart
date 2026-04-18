@@ -1,21 +1,21 @@
 apiVersion: gateway.k8s.aws/v1beta1
 kind: TargetGroupConfiguration
 metadata:
-  name: tg-go-cart-wk-az
+  name: tg-go-cart-ns-wk-az
   namespace: wk-az
   labels:
-    app: tg-go-cart-wk-az
+    app: tg-go-cart-ns-wk-az
 spec:
   targetReference:
     name: svc-go-cart
   defaultConfiguration:
-    targetGroupName: tg-go-cart-wk-az
+    targetGroupName: tg-go-cart-ns-wk-az
     targetType: ip
   routeConfigurations:
     - routeIdentifier:
         kind: HTTPRoute
-        name: go-cart-route
-        namespace: test-a
+        name: go-cart-wk-az-route
+        namespace: wk-az
       targetGroupProps:
         healthCheckConfig:
           healthCheckProtocol: HTTP

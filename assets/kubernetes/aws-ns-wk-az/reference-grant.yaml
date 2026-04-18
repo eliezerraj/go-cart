@@ -1,0 +1,31 @@
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-gateway-ns-test-a-to-access-ns-wk-az
+  namespace: wk-az # Destination Namespace
+  labels:
+    app: allow-gateway-ns-test-a-to-access-ns-wk-az
+spec:
+  from:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: test-a # Source Namespace (where Route is)
+  to:
+    - group: "" # Core API Group
+      kind: Service
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-gateway-ns-wk-az-to-access-ns-test-a
+  namespace: test-a # Destination Namespace
+  labels:
+    app: allow-gateway-ns-wk-az-to-access-ns-test-a
+spec:
+  from:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: wk-az # Source Namespace (where Route is)
+  to:
+    - group: "" # Core API Group
+      kind: Service
