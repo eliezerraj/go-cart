@@ -8,7 +8,7 @@ metadata:
 spec:
   targetReference:
     name: svc-go-cart
-  defaultConfiguration:
+  defaultConfiguration
     targetGroupName: tg-go-cart
     targetType: ip
   routeConfigurations:
