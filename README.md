@@ -190,4 +190,3 @@ Security Headers: Is implement via go-core midleware
 
     ALTER TABLE public.cart_item ADD CONSTRAINT cart_item_fk_product_id_fkey 
     FOREIGN KEY (fk_product_id) REFERENCES public.product(id);
-
