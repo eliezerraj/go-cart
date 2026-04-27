@@ -117,9 +117,10 @@ func (w* WorkerRepository) AddCartItem(ctx context.Context,
 										status,
 										currency,
 										quantity,
-										price, 
+										price,
+										discount,
 										created_at)
-				VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id`
+				VALUES($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`
 
 	row := tx.QueryRow(	ctx, 
 						query,
@@ -129,6 +130,7 @@ func (w* WorkerRepository) AddCartItem(ctx context.Context,
 						cartItem.Currency,
 						cartItem.Quantity,	
 						cartItem.Price,
+						cartItem.Discount,
 						cartItem.CreatedAt)
 						
 	if err := row.Scan(&id); err != nil {
