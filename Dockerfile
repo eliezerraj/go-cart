@@ -1,7 +1,7 @@
 # docker build -t go-cart .
 # docker run -dit --name go-cart -p 7001:7001 go-cart
 
-FROM golang:1.24 As builder
+FROM golang:1.24 AS builder
 
 RUN apt-get update && apt-get install bash && apt-get install -y --no-install-recommends ca-certificates
 

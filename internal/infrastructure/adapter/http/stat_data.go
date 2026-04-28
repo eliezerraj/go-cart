@@ -21,7 +21,7 @@ func (h *HttpRouters) ListCartItemWindow(rw http.ResponseWriter, req *http.Reque
 	}
 
 	// default window is 24, can be override by query parameter
-	window := 24
+	window := 14
 	windowParam := query.Get("window")
 	if windowParam != "" {
 		parsedWindow, err := strconv.Atoi(windowParam)
@@ -31,9 +31,19 @@ func (h *HttpRouters) ListCartItemWindow(rw http.ResponseWriter, req *http.Reque
 		window = parsedWindow
 	}
 
+	offset := 0
+	offsetParam := query.Get("offset")
+	if offsetParam != "" {
+		parsedOffset, err := strconv.Atoi(offsetParam)
+		if err != nil || parsedOffset < 0 {
+			return h.ErrorHandler(h.getTraceID(ctx), erro.ErrBadRequest)
+		}
+		offset = parsedOffset
+	}
+
 	cartitem := model.CartItem{Product: model.Product{Sku: sku}}
 
-	res, err := h.workerService.ListCartItemWindow(ctx, window, &cartitem)
+	res, err := h.workerService.ListCartItemWindow(ctx, window, offset, &cartitem)
 	if err != nil {
 		return h.ErrorHandler(h.getTraceID(ctx), err)
 	}
